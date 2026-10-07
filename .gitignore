@@ -1,0 +1,34 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+dist/
+build/
+captures/
+sessions/
+node_modules/
+dist-desktop/
+dist-renderer/
+.smoke-user-data/
+
+# Generated EEG inspection reports; raw sessions remain outside Git as well.
+/eeg-quality-*.png
+/signal-inspection.png
+/*-signal-inspection.png
+
+# Local experiments, personal notes, and generated outputs.
+/reports/
+/SSVEP_数据管理/
+/SSVEP-CONTEXT.md
+/SSVEP-实验执行手册.md
+/software_copyright_v2/
+/ui-check/
+/MEMORY-AUDIT-1080P.md
+/PERFORMANCE-AUDIT.md
+/Microsoft/
+
+# Local credentials and runtime logs.
+.env
+.env.*
+!.env.example
+*.log

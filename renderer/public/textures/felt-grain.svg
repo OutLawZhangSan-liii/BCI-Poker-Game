@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160">
+  <filter id="grain"><feTurbulence type="fractalNoise" baseFrequency=".72" numOctaves="2" seed="19"/></filter>
+  <rect width="160" height="160" fill="#1c4b39"/>
+  <rect width="160" height="160" filter="url(#grain)" opacity=".075" style="mix-blend-mode:screen"/>
+</svg>

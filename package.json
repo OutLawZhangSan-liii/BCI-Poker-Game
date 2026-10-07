@@ -1,0 +1,34 @@
+{
+  "name": "brain-game-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist-desktop/main/main.js",
+  "scripts": {
+    "start": "npm run build && electron .",
+    "dev": "concurrently -k \"vite\" \"tsc -p desktop/tsconfig.json --watch\" \"wait-on tcp:5173 file:dist-desktop/main/main.js && cross-env VITE_DEV_SERVER_URL=http://127.0.0.1:5173 electron .\"",
+    "build": "vite build && tsc -p desktop/tsconfig.json",
+    "typecheck": "tsc -p desktop/tsconfig.json --noEmit && tsc -p renderer/tsconfig.json --noEmit",
+    "test": "npm run test:stimulus && npm run test:python",
+    "test:stimulus": "node --experimental-strip-types --test renderer/src/bci/stimulus/geometry.test.mjs renderer/src/bci/stimulus/comparison.test.mjs renderer/src/bci/stimulus/phase.test.mjs renderer/src/bci/stimulus/renderBudget.test.mjs renderer/src/bci/stimulus/timingQuality.test.mjs renderer/src/bci/stimulus/refreshRate.test.mjs renderer/src/bci/signal/fbcca.continuous.test.mjs renderer/src/bci/signal/worker.lifecycle.test.mjs renderer/src/teaching/observationFilter.test.mjs renderer/src/teaching/operationRound.test.mjs renderer/src/game/eegSelection.test.mjs renderer/src/game/presentation.test.mjs",
+    "test:python": "python -m unittest discover -s device_gateway/tests -v"
+  },
+  "dependencies": {
+    "@tailwindcss/vite": "^4.1.0",
+    "electron": "^37.0.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "tailwindcss": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "@vitejs/plugin-react": "^4.4.0",
+    "concurrently": "^9.1.0",
+    "cross-env": "^7.0.3",
+    "typescript": "^5.8.0",
+    "vite": "^6.3.0",
+    "wait-on": "^8.0.0"
+  }
+}
