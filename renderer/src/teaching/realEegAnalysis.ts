@@ -1,3 +1,4 @@
+import { DEFAULT_DISPLAY_LEAD } from "../bci/signal/leads";
 import type { EegChunk } from "../bci/protocol";
 import { computePowerSpectrumWithConfig, type PowerSpectrum } from "./simulatedAnalysis";
 import { ObservationFilter, observationFilterInfo, type ObservationFilterInfo, type ObservationSignalMode } from "./observationFilter";
@@ -50,7 +51,7 @@ export interface RealEegTap {
 }
 
 export function resolveRealEegChannelIndex(names: readonly string[], currentIndex: number, previousName: string | null, initialized: boolean): number {
-  const preferred = names.findIndex((name) => name.trim().toUpperCase() === "O1");
+  const preferred = names.findIndex((name) => name.trim().toUpperCase() === DEFAULT_DISPLAY_LEAD.toUpperCase());
   if (!initialized) return preferred >= 0 ? preferred : 0;
   if (previousName) {
     const preserved = names.findIndex((name) => name.trim() === previousName);

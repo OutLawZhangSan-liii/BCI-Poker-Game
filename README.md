@@ -2,7 +2,13 @@
 
 Electron 桌面版 SSVEP 脑机接口扑克牌游戏，包含游戏牌桌、教学模式、设备与实验。前端使用 React、TypeScript、Vite；Python 网关负责设备通信与本地会话录制。
 
-## 启动
+## Windows 安装版
+
+安装程序为 `release/0.1.4/Shengong-Shenyou-Setup-0.1.4-x64.exe`。安装版已内置 Electron 和 Python 网关，无需另装 Node.js 或 Python。安装后从桌面“神工神游”启动；从 Windows“已安装的应用”或安装目录中的卸载程序卸载。卸载保留用户会话数据。
+
+安装、卸载、构建和软件撰写资料见 [packaging/WINDOWS-RELEASE.md](packaging/WINDOWS-RELEASE.md)。
+
+## 源码启动
 
 需要 Node.js、npm 和可通过 `python` 命令运行的 Python 3.9 或更高版本。本机已验证 Node.js 24.18.1、Python 3.9.12；前端测试需要 Node.js 支持 `--experimental-strip-types`。
 
@@ -43,7 +49,7 @@ npm run dev
 - 几何尺寸与相位逻辑分别位于 `renderer/src/bci/stimulus/geometry.ts`、`phase.ts`；绘制与亮度调制见 `renderer/src/components/StimulusTable.tsx`。
 - 注视对照协议、条件随机化和数据新鲜度策略见 `renderer/src/bci/stimulus/comparison.ts`；启动与标记写入见 `renderer/src/main.tsx`。
 - 当前短版对照比较外围闪烁、牌面闪烁、纯色块，以及固定/同步闪烁注视点；保存实际刺激配置与几何。历史实验协议保留，分析时按协议区分。
-- 当前识别使用 O1/O2/P3/P4；个人校准未接入选牌。参数有效性需结合独立注视试次和显示输出测量确认。
+- 当前识别使用 P3/P4/Oz/Pz；个人校准未接入选牌。参数有效性需结合独立注视试次和显示输出测量确认。
 - 实际注视需人工确认。当前标记对齐基于数据包到达时间估计，不能据此声称硬件同步或相位锁定。
 
 详细设备说明见 [device_gateway/README.md](device_gateway/README.md)，实验分析说明见 [tools/ssvep_replay/README.md](tools/ssvep_replay/README.md)。

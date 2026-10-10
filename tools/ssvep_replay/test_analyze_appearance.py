@@ -42,7 +42,7 @@ def fixture(directory):
                     'modulationAmplitude': .45 if hz else 0, 'activeTargetIds': ['center'] if hz else [],
                     'attentionConfirmed': False,
                 })
-    return {'sampleRateHz': 250, 'channels': ['O1', 'O2', 'P3', 'P4'], 'trials': trials}
+    return {'sampleRateHz': 250, 'channels': ['P3', 'P4', 'Oz', 'Pz'], 'trials': trials}
 
 
 def three_fixture(directory):

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, shell } from "electron";
+import { app, BrowserWindow, ipcMain, Menu, shell } from "electron";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -7,6 +7,7 @@ import { IPC } from "./types.js";
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(currentDirectory, "../..");
+const packageSmoke = process.env.BRAIN_GAME_PACKAGE_SMOKE === "1";
 let mainWindow: BrowserWindow | null = null;
 let sidecar: GatewaySidecar | null = null;
 let quitting = false;
@@ -34,7 +35,9 @@ if (!hasLock) app.quit();
 
 function createDirectories() {
   const localRoot = path.join(app.getPath("userData"));
-  const sessions = path.join(app.getPath("documents"), "BrainGame", "Sessions");
+  const sessions = packageSmoke && process.env.BRAIN_GAME_SMOKE_USER_DATA
+    ? path.join(localRoot, "test-sessions")
+    : path.join(app.getPath("documents"), "BrainGame", "Sessions");
   const directories = {
     logs: path.join(localRoot, "logs"),
     syncQueue: path.join(localRoot, "sync-queue"),
@@ -53,7 +56,13 @@ function createWindow(): BrowserWindow {
     minWidth: 960,
     minHeight: 640,
     show: false,
-    backgroundColor: "#07111f",
+    title: "神工 · 神游",
+    titleBarStyle: "hidden",
+    titleBarOverlay: { color: "#111a15", symbolColor: "#eee9dc", height: 64 },
+    icon: app.isPackaged
+      ? path.join(process.resourcesPath, "app-icon.ico")
+      : path.join(projectRoot, "packaging", "icon.ico"),
+    backgroundColor: "#111a15",
     webPreferences: {
       preload: path.join(currentDirectory, "../preload/preload.cjs"),
       sandbox: true,
@@ -73,11 +82,11 @@ function createWindow(): BrowserWindow {
   window.webContents.on("will-navigate", (event, targetUrl) => {
     if (targetUrl !== window.webContents.getURL()) event.preventDefault();
   });
-  window.on("ready-to-show", () => window.show());
+  window.on("ready-to-show", () => { if (!packageSmoke) window.show(); });
   window.on("closed", () => {
     mainWindow = null;
   });
-  const developmentUrl = process.env.VITE_DEV_SERVER_URL;
+  const developmentUrl = app.isPackaged ? undefined : process.env.VITE_DEV_SERVER_URL;
   if (developmentUrl) void window.loadURL(developmentUrl);
   else void window.loadFile(path.join(projectRoot, "dist-renderer", "index.html"));
   return window;
@@ -219,6 +228,8 @@ app.on("second-instance", () => {
 });
 
 app.whenReady().then(async () => {
+  Menu.setApplicationMenu(null);
+  if (process.platform === "win32") app.setAppUserModelId("cn.shengong.shenyou.bcipoker");
   const directories = createDirectories();
   sidecar = new GatewaySidecar({
     projectRoot,
@@ -247,9 +258,118 @@ app.whenReady().then(async () => {
     await sidecar.start();
   } catch (error) {
     console.error("Failed to start device gateway", error);
+    if (packageSmoke) {
+      fs.writeFileSync(path.join(app.getPath("userData"), "package-smoke.json"), JSON.stringify({ success: false, error: String(error) }));
+      app.exit(1);
+    }
     return;
   }
-  if (process.env.BRAIN_GAME_RENDERER_SMOKE_TEST === "1" && mainWindow) {
+  if (packageSmoke && mainWindow) {
+    try {
+      if (mainWindow.webContents.isLoadingMainFrame()) {
+        await new Promise<void>((resolve, reject) => {
+          mainWindow!.webContents.once("did-finish-load", () => resolve());
+          mainWindow!.webContents.once("did-fail-load", (_event, code, description) => reject(new Error(`${code}: ${description}`)));
+        });
+      }
+      if (process.env.BRAIN_GAME_BRAND_PREVIEW === "1") {
+        await mainWindow.webContents.executeJavaScript(`(async () => {
+          await document.fonts.ready;
+          for (let i = 0; i < 80 && !document.querySelector('.intro-flip--running'); i++)
+            await new Promise(resolve => setTimeout(resolve, 25));
+          if (!document.querySelector('.intro-flip--running')) throw new Error('Intro did not start');
+        })()`);
+        for (const [name, time] of [["intro-before", 2700], ["intro-drawing", 3150], ["intro-complete", 3750]] as const) {
+          const preview = await mainWindow.webContents.executeJavaScript(`(() => {
+            const intro = document.querySelector('.intro-flip');
+            for (const animation of intro.getAnimations({ subtree: true })) {
+              animation.pause(); animation.currentTime = ${time};
+            }
+            const logo = intro.querySelector('.intro-flip__neuron');
+            const trace = intro.querySelector('.intro-flip__neuron-trace');
+            return { wordmarkPresent: Boolean(intro.querySelector('.brand-wordmark')),
+              logoPresent: Boolean(logo), dashOffset: getComputedStyle(trace).strokeDashoffset };
+          })()`);
+          await new Promise(resolve => setTimeout(resolve, 80));
+          fs.writeFileSync(path.join(app.getPath("userData"), `${name}.png`), (await mainWindow.webContents.capturePage()).toPNG());
+          console.log(`BRAND_PREVIEW=${JSON.stringify({ name, ...preview })}`);
+        }
+        await mainWindow.webContents.executeJavaScript(`document.querySelector('.intro-flip').click()`);
+      }
+      const ui = await mainWindow.webContents.executeJavaScript(`(async () => {
+        const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+        await sleep(6000);
+        const sections = [];
+        for (const label of ['教学模式', '设备与实验', '游戏牌桌']) {
+          const button = [...document.querySelectorAll('button')].find(item => item.textContent?.trim() === label);
+          if (!button) throw new Error('Missing navigation: ' + label);
+          button.click(); await sleep(400); sections.push(label);
+        }
+        return { sections, gatewayStatus: await window.brainGameDesktop.getGatewayStatus(),
+          preloadAvailable: !!window.brainGameDesktop,
+          brokenImages: [...document.images].filter(image => !image.complete || !image.naturalWidth).length,
+          textLength: document.body.innerText.length };
+      })()`);
+      if (ui.gatewayStatus !== "ready" || ui.brokenImages > 0 || ui.textLength < 50) {
+        throw new Error(`Packaged application verification failed: ${JSON.stringify(ui)}`);
+      }
+      const headerChecks = [];
+      for (const [width, height] of [[1920, 1080], [1280, 800], [960, 640]]) {
+        mainWindow.setContentSize(width, height);
+        const checks = await mainWindow.webContents.executeJavaScript(`(async () => {
+          const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+          const checks = [];
+          for (const label of ['游戏牌桌', '教学模式', '设备与实验']) {
+            [...document.querySelectorAll('button')].find(item => item.textContent?.trim() === label).click();
+            await sleep(160);
+            const header = document.querySelector('.app-header');
+            const identity = header.querySelector('.app-header__identity');
+            const nav = header.querySelector('.view-nav');
+            const status = header.querySelector('.app-header__status');
+            const icon = header.querySelector('.app-header__icon');
+            const wordmark = header.querySelector('.brand-wordmark');
+            const rect = element => { const r = element.getBoundingClientRect(); return { left: r.left, right: r.right, top: r.top, bottom: r.bottom }; };
+            const h = rect(header), i = rect(identity), n = rect(nav), s = rect(status);
+            const safeRight = innerWidth - parseFloat(getComputedStyle(header).paddingRight);
+            const noOverlap = i.right <= n.left + 1 && n.right <= s.left + 1 && s.right <= safeRight + 1;
+            const wordmarkBounds = rect(wordmark);
+            const wordmarkVisible = getComputedStyle(wordmark).maskImage.includes('shoujin-wordmark.svg') &&
+              wordmarkBounds.top >= h.top && wordmarkBounds.bottom <= h.bottom && wordmarkBounds.right <= n.left;
+            const valid = noOverlap && wordmarkVisible && Math.abs(h.top) <= 1 && icon.complete && icon.naturalWidth > 0 &&
+              getComputedStyle(header).webkitAppRegion === 'drag' && getComputedStyle(nav).webkitAppRegion === 'no-drag' &&
+              document.documentElement.scrollWidth <= innerWidth + 1;
+            checks.push({ page: label, valid, noOverlap, header: h, identity: i, nav: n, status: s, safeRight,
+              title: header.querySelector('h1').textContent, wordmarkVisible, wordmarkBounds, iconWidth: icon.naturalWidth,
+              viewport: [innerWidth, innerHeight] });
+          }
+          return checks;
+        })()`);
+        headerChecks.push(...checks);
+        if (checks.some((check: { valid: boolean }) => !check.valid)) {
+          throw new Error(`Window header validation failed: ${JSON.stringify(checks)}`);
+        }
+        await mainWindow.webContents.executeJavaScript(`document.querySelectorAll('.view-nav button')[0].click()`);
+        await new Promise(resolve => setTimeout(resolve, 180));
+        fs.writeFileSync(path.join(app.getPath("userData"), `window-${width}.png`), (await mainWindow.webContents.capturePage()).toPNG());
+      }
+      const windowControls = { menuRemoved: Menu.getApplicationMenu() === null,
+        minimizable: mainWindow.isMinimizable(), maximizable: mainWindow.isMaximizable(),
+        closable: mainWindow.isClosable(), resizable: mainWindow.isResizable() };
+      if (Object.values(windowControls).some(value => !value)) throw new Error("Native window controls are unavailable");
+      fs.writeFileSync(path.join(app.getPath("userData"), "package-smoke.json"), JSON.stringify({
+        success: true, version: app.getVersion(), packaged: app.isPackaged,
+        bundledGateway: fs.existsSync(path.join(process.resourcesPath, "device_gateway", "device_gateway.exe")),
+        ui, headerChecks, windowControls,
+        customIcon: fs.existsSync(path.join(process.resourcesPath, "app-icon.ico")),
+        metrics: app.getAppMetrics().map(({ type, cpu, memory }) => ({ type, cpu, memory })),
+      }, null, 2));
+    } catch (error) {
+      fs.writeFileSync(path.join(app.getPath("userData"), "package-smoke.json"), JSON.stringify({ success: false, error: String(error) }));
+      process.exitCode = 1;
+    } finally {
+      app.quit();
+    }
+  } else if (process.env.BRAIN_GAME_RENDERER_SMOKE_TEST === "1" && mainWindow) {
     try {
       await runRendererSmokeTest(mainWindow);
     } catch (error) {

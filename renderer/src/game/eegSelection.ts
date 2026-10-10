@@ -1,3 +1,4 @@
+import { ANALYSIS_LEADS, missingAnalysisLeads } from "../bci/signal/leads";
 import type { BciDecision } from "../bci/signal/types";
 
 export const GAME_STIMULUS_MS = 6000;
@@ -25,7 +26,6 @@ export function gameDecisionChoice(decision: BciDecision, trial: GameEegTrial, n
 export function gameEegReadiness(connected: boolean, streaming: boolean, leads: string[]): string | null {
   if (!connected) return "请先连接 EEG 设备";
   if (!streaming) return "请先开始 EEG 采集";
-  const normalized = leads.map(lead => lead.trim().toUpperCase());
-  if (["O1", "O2", "P3", "P4"].some(lead => !normalized.includes(lead))) return "EEG 尚未就绪：需要 O1 / O2 / P3 / P4";
+  if (missingAnalysisLeads(leads).length) return `EEG 尚未就绪：需要 ${ANALYSIS_LEADS.join(" / ")}`;
   return null;
 }

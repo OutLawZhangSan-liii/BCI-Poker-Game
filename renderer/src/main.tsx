@@ -1,3 +1,4 @@
+import { ANALYSIS_LEADS, missingAnalysisLeads } from "./bci/signal/leads";
 import { StrictMode, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { createRoot } from "react-dom/client";
 import { GatewayClient, type CommandResult } from "./bci/gatewayClient";
@@ -732,8 +733,7 @@ function App() {
   const performTeachingStimulus = async (operationTrial?: OperationTrial, roundIndex?: number) => {
     if (teachingActiveRef.current || teachingPreparingRef.current) return;
     if (!connected || !properties || !acquiring || !sessionIdRef.current) throw new Error("请先连接 EEG 设备并开始采集");
-    const names = properties.lead_names.map(name => name.trim().toUpperCase());
-    if (["O1", "O2", "P3", "P4"].some(name => !names.includes(name))) throw new Error("当前数据质量不足：分类需要 O1、O2、P3、P4 真实导联");
+    if (missingAnalysisLeads(properties.lead_names).length) throw new Error(`当前数据质量不足：分类需要 ${ANALYSIS_LEADS.join("、")} 真实导联`);
     setTeachingWorkspace("run");
     if (teachingMode === "operation" && teachingTargets.length < 2) throw new Error("操作训练至少需要两个目标");
     const frequencies = teachingTargets.map((target) => target.frequencyHz);

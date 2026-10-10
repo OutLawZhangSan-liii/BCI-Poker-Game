@@ -1,0 +1,10 @@
+@font-face {
+  font-family: "Shengong Ming";
+  src: url("/assets/branding/fonts/shengong-ming.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+}
+:root {
+  --font-brand: "Shengong Ming", "Noto Serif SC", "Songti SC", "SimSun", serif;
+}

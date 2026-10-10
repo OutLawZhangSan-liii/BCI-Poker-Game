@@ -66,7 +66,11 @@ function load(filename) {
   vm.runInContext(ts.transpileModule(fs.readFileSync(filename,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,context);
   return exports;
 }
-const {RealEegAnalysisBuffer,computeRealEegSpectrum}=load(fileURLToPath(new URL('./realEegAnalysis.ts',import.meta.url)));
+const {RealEegAnalysisBuffer,computeRealEegSpectrum,resolveRealEegChannelIndex}=load(fileURLToPath(new URL('./realEegAnalysis.ts',import.meta.url)));
+test('observation defaults to the real Oz electrode and preserves explicit user selection',()=>{
+  assert.equal(resolveRealEegChannelIndex(['O1','P3',' pz ',' oZ '],0,null,false),3);
+  assert.equal(resolveRealEegChannelIndex(['Pz','Oz','P3'],0,'P3',true),2);
+});
 function makeBuffer(channelIndex=0) {
   const buffer=new RealEegAnalysisBuffer();
   buffer.configure({sessionId:'live',sampleRateHz:1000,channelCount:2,channelIndex,samplesPerPacket:100});

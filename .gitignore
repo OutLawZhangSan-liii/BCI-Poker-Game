@@ -26,9 +26,14 @@ dist-renderer/
 /MEMORY-AUDIT-1080P.md
 /PERFORMANCE-AUDIT.md
 /Microsoft/
+/PROJECT-STATUS.md
+/_application_form_temp/
 
 # Local credentials and runtime logs.
 .env
+.venv-packaging/
+.venv-release/
+/release/
 .env.*
 !.env.example
 *.log

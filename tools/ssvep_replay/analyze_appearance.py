@@ -1,3 +1,4 @@
+from .leads import export_roi
 """Matched central card/solid comparison, with paired early/late EEG windows.
 
 Whole-trial causal filtering precedes segmentation. No model fitting, lag search,
@@ -23,7 +24,7 @@ COMPONENTS = (12, 24, 36, 15, 30, 45)
 PREDEFINED = (('12hz', 12), ('12hz', 24), ('15hz', 15), ('15hz', 30))
 
 
-def segmented_spectra(raw, fs):
+def segmented_spectra(raw, fs, roi_indices=(2, 3)):
     if raw.ndim != 2 or raw.shape[1] != 4 or len(raw) == 0 or not np.isfinite(raw).all():
         raise ValueError('Four finite channels required')
     sos = np.vstack((signal.butter(4, 2, 'highpass', fs=fs, output='sos'),
@@ -43,9 +44,9 @@ def segmented_spectra(raw, fs):
             neighbors = [np.argmin(abs(frequencies-(hz+offset))) for offset in (-1, -.75, -.5, .5, .75, 1)]
             target = power[index]; noise = power[neighbors].mean(axis=0)
             result[name][str(hz)] = {
-                'psdUv2PerHz': target.tolist(), 'roiPsdUv2PerHz': float(target[:2].mean()),
+                'psdUv2PerHz': target.tolist(), 'roiPsdUv2PerHz': float(target[list(roi_indices)].mean()),
                 'snrDb': (10*np.log10(np.maximum(target, 1e-30)/np.maximum(noise, 1e-30))).tolist(),
-                'roiSnrDb': float(10*np.log10(max(target[:2].mean(), 1e-30)/max(noise[:2].mean(), 1e-30))),
+                'roiSnrDb': float(10*np.log10(max(target[list(roi_indices)].mean(), 1e-30)/max(noise[list(roi_indices)].mean(), 1e-30))),
                 'bandRmsUv': np.sqrt(power[abs(frequencies-hz)<=.5+1e-9].sum(axis=0)*(frequencies[1]-frequencies[0])).tolist(),
             }
     return result
@@ -144,8 +145,7 @@ def analyze(directory, protocol=PROTOCOL):
     forms = PROTOCOL_FORMS[protocol]
     form_comparisons = [('card-face','card'),('card-face','solid'),('card','solid')] if protocol==THREE_FORM_PROTOCOL else [forms]
     index = json.loads((directory/'index.json').read_text(encoding='utf8'))
-    if index['channels'] != ['O1', 'O2', 'P3', 'P4']:
-        raise ValueError('Explicit O1/O2/P3/P4 order required')
+    roi_indices, roi_leads = export_roi(index['channels'])
     rows = []
     for item in index['trials']:
         if item.get('comparisonProtocol') != protocol: continue
@@ -162,7 +162,7 @@ def analyze(directory, protocol=PROTOCOL):
                                 'endExclusive': first+round(end*index['sampleRateHz'])}
                           for name, (start, end) in WINDOWS.items()} if isinstance(first, int) else None
         rows.append({**item, 'excludeReasons': reasons, 'sampleWindows': sample_windows,
-                     'spectra': segmented_spectra(raw, index['sampleRateHz']) if not reasons else None})
+                     'spectra': segmented_spectra(raw, index['sampleRateHz'], roi_indices) if not reasons else None})
     groups = {}
     for row in rows:
         if row['spectra']:
@@ -225,9 +225,9 @@ def analyze(directory, protocol=PROTOCOL):
                                'direction':'Positive: late enhancement exceeds early; negative: early exceeds late, after own matched static temporal change. Two-sided comparison.'})
     adjusted=holm_adjust([t['result']['pTwoSided'] if t['result'] else 1 for t in time_tests])
     for t,p in zip(time_tests,adjusted):t['pHolm']=p
-    report={'protocol':protocol,'channels':index['channels'],'trials':rows,'pairs':pairs,
+    report={'protocol':protocol,'channels':index['channels'],'roiLeads':roi_leads,'trials':rows,'pairs':pairs,
             'formTests':form_tests,'timeTests':time_tests,'analysisWindowsSeconds':WINDOWS,
-            'method':f'Continuous whole-trial HP2/LP45 then full 8s / early4s / late4s Hann PSD. Mean O1/O2 powers, local noise ±0.5/0.75/1Hz. Two-sided paired label-swaps: static-adjusted pairwise form contrasts across independent blocks, {len(form_tests)} Holm tests; separate late-minus-early static-adjusted family, {len(time_tests)} Holm tests.',
+            'method':f'Continuous whole-trial HP2/LP45 then full 8s / early4s / late4s Hann PSD. Mean {"/".join(roi_leads)} powers, local noise ±0.5/0.75/1Hz. Two-sided paired label-swaps: static-adjusted pairwise form contrasts across independent blocks, {len(form_tests)} Holm tests; separate late-minus-early static-adjusted family, {len(time_tests)} Holm tests.',
             'limitations':'Segments are paired within trial, never independent trials. Digital baseline is not photometric luminance matching. '+
                           ('Face footprints match, but card artwork changes spatial modulation distribution and mean physical luminance. ' if protocol==CARD_FACE_PROTOCOL else 'Form contrast changes modulated area and card artwork. ')+
                           '36/45Hz descriptive only;45Hz at filter cutoff. No hardware phase inference, gaze verification, calibration, threshold tuning, or game accuracy inference.'}
@@ -254,7 +254,7 @@ def analyze(directory, protocol=PROTOCOL):
     for t in time_tests:
         v=t['result'];lines.append(f'|{t["appearance"]}|{t["condition"]}|{t["componentHz"]} Hz|{v["blocks"] if v else 0}|{t["earlyMeanEnhancementDb"]:+.2f}|{t["lateMeanEnhancementDb"]:+.2f}|{v["meanPowerChangeDb"]:+.2f}|{t["pHolm"]:.4f}|{t["attentionConfirmed"]}|' if v else f'|{t["appearance"]}|{t["condition"]}|{t["componentHz"]} Hz|0|—|—|—|—|未确认|')
     lines += ['', '## 局部 SNR：各形式、条件与分量', '',
-              '固定 O1/O2 平均功率的局部 SNR 中位数；完整窗和两段使用各自等长窗，仅早晚可直接比较。所有条件均计算全部六个频点，便于检查响应是否跟随刺激频率。', '',
+              f'固定 {"/".join(roi_leads)} 平均功率的局部 SNR 中位数；完整窗和两段使用各自等长窗，仅早晚可直接比较。所有条件均计算全部六个频点，便于检查响应是否跟随刺激频率。', '',
               '|形式|条件|分量 Hz|有效次数|完整 8 秒 dB|早 4 秒 dB|晚 4 秒 dB|', '|---|---|---:|---:|---:|---:|---:|']
     for appearance in forms:
         for condition in ('static', '12hz', '15hz'):

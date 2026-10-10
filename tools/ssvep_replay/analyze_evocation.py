@@ -1,3 +1,4 @@
+from .leads import export_roi
 """Predefined spectral tests for central-solid-evocation-v1; no classifier fitting."""
 import argparse
 import itertools
@@ -10,7 +11,7 @@ PROTOCOL = 'central-solid-evocation-v1'
 COMPONENTS = (12, 24, 15, 30)
 
 
-def spectral_metrics(raw, fs):
+def spectral_metrics(raw, fs, roi_indices=(2, 3)):
     sos = np.vstack((signal.butter(4, 2, 'highpass', fs=fs, output='sos'),
                      signal.butter(4, 45, 'lowpass', fs=fs, output='sos')))
     zi = signal.sosfilt_zi(sos)[:, :, None]*raw[0][None, None, :]
@@ -29,8 +30,8 @@ def spectral_metrics(raw, fs):
         result[str(hz)] = {
             'psdUv2PerHz': target.tolist(),
             'snrDb': (10*np.log10(np.maximum(target, 1e-30)/np.maximum(noise, 1e-30))).tolist(),
-            'roiPsdUv2PerHz': float(target[:2].mean()),
-            'roiSnrDb': float(10*np.log10(max(target[:2].mean(), 1e-30)/max(noise[:2].mean(), 1e-30))),
+            'roiPsdUv2PerHz': float(target[list(roi_indices)].mean()),
+            'roiSnrDb': float(10*np.log10(max(target[list(roi_indices)].mean(), 1e-30)/max(noise[list(roi_indices)].mean(), 1e-30))),
             'bandRmsUv': np.sqrt(p[abs(f-hz)<=.5+1e-9].sum(axis=0)*(f[1]-f[0])).tolist(),
         }
     return result
@@ -94,6 +95,7 @@ def exclusions(item, minimum_age_limit=100, freshness_multiplier=1.5):
 
 def analyze(directory):
     index = json.loads((directory/'index.json').read_text(encoding='utf8'))
+    roi_indices, roi_leads = export_roi(index['channels'])
     rows = []
     for item in index['trials']:
         if item.get('comparisonProtocol') != PROTOCOL: continue
@@ -101,7 +103,7 @@ def analyze(directory):
         raw = np.fromfile(directory/item['file'], dtype='<f4').reshape(-1, 4)
         if not np.isfinite(raw).all() or np.any(np.ptp(raw, axis=0) == 0): reasons.append('invalid_or_flat_data')
         rows.append({**item, 'excludeReasons': reasons,
-                     'spectra': spectral_metrics(raw, index['sampleRateHz']) if not reasons else None})
+                     'spectra': spectral_metrics(raw, index['sampleRateHz'], roi_indices) if not reasons else None})
     tests, pairs = [], []
     for condition, components in (('12hz', (12, 24)), ('15hz', (15, 30))):
         for hz in components:
@@ -126,7 +128,7 @@ def analyze(directory):
         t['pHolm'] = p
         t['interpretation'] = '探索性结果；实际注视未确认' if not t['attentionConfirmed'] else '仅为频谱增强检验，尚不能单独证明神经诱发'
     report = {'channels': index['channels'], 'trials': rows, 'pairs': pairs, 'tests': tests,
-              'roi': 'Mean O1/O2 powers, fixed before data collection',
+              'roiLeads': roi_leads, 'roi': f'Mean {"/".join(roi_leads)} powers; selected by declared export montage',
               'method': '1.5–9.5 s; HP2/LP45; Hann 8s PSD; local noise at ±0.5/0.75/1 Hz; independent matched-block power changes; four one-sided label-swap tests, Holm correction',
               'phaseInference': 'Not computed: gateway packet-arrival estimates are not hardware synchronization',
               'limitations': 'Five independent pairs have minimum exact one-sided p=1/32; four Holm tests cannot reach .05 with only five pairs. This round screens repeatability; confirmation needs more independent trials. Local SNR alone is not proof of neural response; no clinical normal-amplitude cutoff.'}

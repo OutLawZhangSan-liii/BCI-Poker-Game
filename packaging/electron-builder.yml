@@ -1,0 +1,46 @@
+appId: cn.shengong.shenyou.bcipoker
+productName: 神工神游
+executableName: ShengongShenyou
+asar: true
+electronDist: node_modules/electron/dist
+directories:
+  output: release/${version}
+  buildResources: packaging
+files:
+  - dist-desktop/**/*
+  - dist-renderer/**/*
+  - package.json
+extraResources:
+  - from: packaging/icon.ico
+    to: app-icon.ico
+  - from: build/gateway/device_gateway
+    to: device_gateway
+    filter:
+      - '**/*'
+win:
+  icon: packaging/icon.ico
+  target:
+    - target: nsis
+      arch: [x64]
+  # This build has no signing certificate. Keep Windows version resources.
+  signAndEditExecutable: true
+nsis:
+  installerIcon: packaging/icon.ico
+  uninstallerIcon: packaging/icon.ico
+  artifactName: Shengong-Shenyou-Setup-${version}-${arch}.${ext}
+  oneClick: false
+  perMachine: false
+  allowElevation: false
+  allowToChangeInstallationDirectory: true
+  include: packaging/installer.nsh
+  installerLanguages: [zh_CN, en_US]
+  language: '2052'
+  shortcutName: 神工神游
+  uninstallDisplayName: 神工神游 ${version}
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  runAfterFinish: false
+  deleteAppDataOnUninstall: false
+  packElevateHelper: false
+  differentialPackage: false
+publish: null

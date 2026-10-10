@@ -2,6 +2,10 @@
 import argparse
 import json
 from pathlib import Path
+import sys
+if not __package__:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from tools.ssvep_replay.leads import LEGACY_LEADS
 import numpy as np
 from scipy import signal
 import matplotlib
@@ -26,6 +30,8 @@ def main():
     args = parser.parse_args()
     r = json.loads((args.directory/'stimulus-comparison.json').read_text(encoding='utf8'))
     index = json.loads((args.directory/'index.json').read_text(encoding='utf8'))
+    if index['channels'] != list(LEGACY_LEADS) or r['channels'] != list(LEGACY_LEADS):
+        raise ValueError('Archived O1/O2 report only; use current generic analyzers for new recordings')
     fs = index['sampleRateHz']
     valid = [t for t in r['trials'] if t['metrics']]
     fmt = lambda values: ' / '.join(f'{v:.2f}' for v in values[:2])

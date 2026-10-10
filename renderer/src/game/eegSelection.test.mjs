@@ -1,13 +1,30 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {gameDecisionChoice, gameEegReadiness, GAME_STIMULUS_MS, GAME_ANALYSIS_GRACE_MS} from './eegSelection.ts';
+import fs from 'node:fs';
+import path from 'node:path';
+import vm from 'node:vm';
+import {fileURLToPath} from 'node:url';
+import ts from 'typescript';
+const cache = new Map();
+function load(filename) {
+ if(cache.has(filename)) return cache.get(filename);
+ const exports = {}; cache.set(filename,exports);
+ vm.runInContext(ts.transpileModule(fs.readFileSync(filename,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,
+  vm.createContext({exports,console,require:name=>load(path.resolve(path.dirname(filename),name+'.ts'))}));
+ return exports;
+}
+const {gameDecisionChoice, gameEegReadiness, GAME_STIMULUS_MS, GAME_ANALYSIS_GRACE_MS} = load(fileURLToPath(new URL('./eegSelection.ts',import.meta.url)));
 const trial={sessionId:'session',trialId:'trial',frequencies:[12,15],onsetMs:1000,sampleRateHz:256};
 const decision={sessionId:'session',trialId:'trial',classifierName:'fbcca-cca',classifierVersion:'0.2.0',candidateIndex:0,rejected:false,confidence:.8,windowStartSample:0,windowEndSample:640};
 test('formal game requires connected streaming EEG and all four real leads',()=>{
  assert.match(gameEegReadiness(false,false,[]),/连接/);
- assert.match(gameEegReadiness(true,false,['O1','O2','P3','P4']),/采集/);
- assert.match(gameEegReadiness(true,true,['O1','O2','P3']),/P4/);
- assert.equal(gameEegReadiness(true,true,['o1',' O2 ','P3','p4']),null);
+ assert.match(gameEegReadiness(true,false,['P3','P4','Oz','Pz']),/采集/);
+ assert.match(gameEegReadiness(true,true,['P3','Oz','Pz']),/P4/);
+ assert.equal(gameEegReadiness(true,true,['pz',' OZ ','P3','p4']),null);
+ assert.match(gameEegReadiness(true,true,['O1','O2','P3','P4']),/Oz.*Pz/);
+ for(const missing of ['P3','P4','Oz','Pz']) {
+  assert.notEqual(gameEegReadiness(true,true,['P3','P4','Oz','Pz'].filter(lead=>lead!==missing)),null);
+ }
 });
 test('accepted real candidates select their card indices independently of the correct answer',()=>{
  assert.equal(gameDecisionChoice(decision,trial,3700),0);

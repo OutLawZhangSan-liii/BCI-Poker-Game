@@ -1,0 +1,23 @@
+.brand-wordmark {
+  position: relative;
+  display: inline-block;
+  flex: none;
+  width: calc(var(--brand-wordmark-height, 38px) * var(--brand-wordmark-ratio, 3.47));
+  height: var(--brand-wordmark-height, 38px);
+  background: currentColor;
+  mask-image: url("/assets/branding/shoujin-wordmark.svg");
+  mask-position: center;
+  mask-repeat: no-repeat;
+  mask-size: contain;
+  vertical-align: middle;
+}
+.brand-wordmark__text {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

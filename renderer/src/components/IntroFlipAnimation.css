@@ -6,17 +6,24 @@
 .intro-flip__background { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; }
 /* Keep the side texture; hide its baked-in card behind the separate 3D card. */
 .intro-flip__background { mask-image: linear-gradient(to right, #000 24%, transparent 36%, transparent 64%, #000 76%); }
-.intro-flip__title-position { position: absolute; top: 7%; left: 0; right: 0; padding: 0 16px; text-align: center; }
-.intro-flip__title { display: inline-block; color: #f3e5c8; font-family: "Songti SC", "STSong", "SimSun", serif; font-size: clamp(27.3px, min(3.675vw, 6.51vh), 67.2px); font-weight: 690; -webkit-text-stroke: .002em currentColor; line-height: 1.2; letter-spacing: .18em; text-indent: .18em; white-space: nowrap; mask-image: linear-gradient(45deg, #000 45%, transparent 55%); mask-size: 300% 300%; mask-repeat: no-repeat; mask-position: 100% 0%; }
+.intro-flip__title-position { position: absolute; top: 7%; left: 0; right: 0; padding: 0 16px; display: flex; align-items: center; justify-content: center; gap: clamp(8px, 1.1vw, 20px); text-align: center; }
+.intro-flip__title { display: inline-flex; color: #f3e5c8; --brand-wordmark-height: clamp(48px, min(5.5vw, 9.5vh), 94px); white-space: nowrap; mask-image: linear-gradient(45deg, #000 45%, transparent 55%); mask-size: 300% 300%; mask-repeat: no-repeat; mask-position: 100% 0%; }
+.intro-flip__neuron { flex: none; width: clamp(70px, min(8vw, 14vh), 120px); height: auto; overflow: visible; mix-blend-mode: screen; }
+.intro-flip__neuron-trace { stroke-dasharray: 1; stroke-dashoffset: 1; }
+.intro-flip__neuron-finish { opacity: 0; }
 .intro-flip__card-position { position: absolute; left: 50%; top: 48.7%; width: min(22.8vw, 40.5vh); aspect-ratio: 381 / 588; transform: translate(-50%, -50%); perspective: 1200px; }
 .intro-flip__card { position: absolute; inset: 0; transform-style: preserve-3d; will-change: transform; }
 .intro-flip__face { position: absolute; inset: 0; backface-visibility: hidden; border-radius: 6%; background-size: 438.85% 160.04%; background-position: 50% 46.46%; background-repeat: no-repeat; background-color: #14291f; box-shadow: 0 4px 14px rgba(0, 0, 0, .18); }
 .intro-flip__face--back { transform: rotateY(180deg); }
 .intro-flip--running .intro-flip__scene { animation: intro-scene-in 300ms ease-out both; }
 .intro-flip--running .intro-flip__title { animation: intro-title-in 1000ms linear 2750ms both; }
+.intro-flip--running .intro-flip__neuron-trace { animation: intro-neuron-draw 1000ms linear 2750ms both; }
+.intro-flip--running .intro-flip__neuron-finish { animation: intro-neuron-finish 100ms ease-out 3650ms both; }
 .intro-flip--running .intro-flip__card { animation: intro-card-turn 2200ms cubic-bezier(.42, 0, .42, 1) 550ms both; }
 .intro-flip__skip { position: absolute; bottom: 14px; left: 16px; right: 16px; color: rgba(242, 239, 230, .4); font-size: 12px; text-align: center; pointer-events: none; }
 @keyframes intro-scene-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes intro-card-turn { from { transform: rotateY(0deg); } to { transform: rotateY(180deg); } }
 @keyframes intro-title-in { from { mask-position: 100% 0%; } to { mask-position: 0% 100%; } }
-@media (prefers-reduced-motion: reduce) { .intro-flip { transition-duration: 150ms !important; } .intro-flip--running * { animation: none !important; } .intro-flip--running .intro-flip__title { mask-image: none; } }
+@keyframes intro-neuron-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@keyframes intro-neuron-finish { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .intro-flip { transition-duration: 150ms !important; } .intro-flip--running * { animation: none !important; } .intro-flip--running .intro-flip__title { mask-image: none; } .intro-flip__neuron-trace { stroke-dashoffset: 0; } .intro-flip__neuron-finish { opacity: 1; } }

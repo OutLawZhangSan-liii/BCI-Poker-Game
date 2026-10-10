@@ -3,10 +3,13 @@
 import argparse
 import json
 from pathlib import Path
+import sys
+if not __package__:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 import numpy as np
 from scipy import signal
 
-LEADS = ('O1', 'O2', 'P3', 'P4')
+from tools.ssvep_replay.leads import export_roi
 
 
 def metrics(raw, fs, hz):
@@ -46,6 +49,8 @@ def main():
     parser.add_argument('directory', type=Path)
     args = parser.parse_args()
     index = json.loads((args.directory/'index.json').read_text(encoding='utf-8'))
+    export_roi(index['channels'])
+    leads = index['channels']
     fs = index['sampleRateHz']
     trials, pairs = [], []
     for item in index['trials']:
@@ -84,12 +89,12 @@ def main():
                       'attentionConfirmed': card['attentionConfirmed'] and solid['attentionConfirmed'],
                       'cardTrialId': card['trialId'], 'solidTrialId': solid['trialId'],
                       'fundamentalSnrDifferenceDb': (np.array(solid['metrics']['1']['snrDb'])-card['metrics']['1']['snrDb']).tolist()})
-    report = {'channels': LEADS, 'trials': trials, 'pairs': pairs,
+    report = {'channels': leads, 'trials': trials, 'pairs': pairs,
               'method': 'Same 1.25–5.25 s window; causal HP2/LP45; Hann 4s PSD; target power / neighboring-bin mean; μV²/Hz',
               'limitations': 'Band RMS includes background. Form comparison also changes fixation graphics and mean spatial luminance; it cannot isolate area alone. No universal amplitude cutoff or clinical claim.'}
     (args.directory/'stimulus-comparison.json').write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
-    lines = ['# 扑克牌 / 纯色刺激对照', '', '只分析实际记录，使用 O1/O2/P3/P4。需人工确认注视；未确认时不能据此下响应结论。', '',
-             '|频率|重复|尺寸位置匹配|已确认注视|纯色减牌面基波 SNR：O1 / O2 / P3 / P4（dB）|', '|---|---|---|---|---|']
+    lines = ['# 扑克牌 / 纯色刺激对照', '', f'只分析实际记录，使用 {"/".join(leads)}。需人工确认注视；未确认时不能据此下响应结论。', '',
+             f'|频率|重复|尺寸位置匹配|已确认注视|纯色减牌面基波 SNR：{" / ".join(leads)}（dB）|', '|---|---|---|---|---|']
     for p in pairs:
         lines.append(f"|{p['frequencyHz']} Hz|{p['repetition']}|{p['geometryMatched']}|{p['attentionConfirmed']}|" + ' / '.join(f'{v:+.2f}' for v in p['fundamentalSnrDifferenceDb'])+'|')
     lines += ['', f'有效试次 {sum(not t["excludeReasons"] for t in trials)}/{len(trials)}；完整匹配对 {len(pairs)}。',

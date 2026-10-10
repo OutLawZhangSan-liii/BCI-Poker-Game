@@ -42,7 +42,7 @@ export interface BciDecision {
 
 export interface CalibrationProgress { counts: number[]; requiredPerTarget: number; }
 
-export type PsdDisplayChannel = "O1" | "O2" | "P3" | "P4" | "mean";
+export type PsdDisplayChannel = "P3" | "P4" | "Oz" | "Pz" | "mean";
 
 export interface RealTrialAnalysis {
   sessionId: string; trialId: string; windowStartSample: number; windowEndSample: number;

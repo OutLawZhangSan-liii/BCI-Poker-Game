@@ -62,7 +62,7 @@ class EvocationAnalysisTests(unittest.TestCase):
                         'targets': [{'id': 'center', 'frequencyHz': hz, 'x': .5, 'y': .5}],
                         'modulationAmplitude': .45 if hz else 0, 'activeTargetIds': ['center'] if hz else [],
                         'attentionConfirmed': False})
-            (directory/'index.json').write_text(json.dumps({'sampleRateHz': 250, 'channels': ['O1', 'O2', 'P3', 'P4'], 'trials': trials}), encoding='utf8')
+            (directory/'index.json').write_text(json.dumps({'sampleRateHz': 250, 'channels': ['P3', 'P4', 'Oz', 'Pz'], 'trials': trials}), encoding='utf8')
             report = analyze(directory)
             self.assertEqual(sum(t['spectra'] is not None for t in report['trials']), 14)
             self.assertEqual([t['result']['blocks'] for t in report['tests']], [5, 5, 4, 4])

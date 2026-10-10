@@ -1,3 +1,4 @@
+import { ANALYSIS_LEADS, analysisChannelIndices, DEFAULT_DISPLAY_LEAD } from "./leads";
 import { ReusableSpectrum } from "../../teaching/reusableSpectrum";
 import { ObservationFilter, observationFilterInfo } from "../../teaching/observationFilter";
 /// <reference lib="webworker" />
@@ -32,17 +33,8 @@ let classifierBuffers: SignalRingBuffer[] = [];
 let classifierOrigin = 0;
 let classifierResetPending = false;
 const send = (message: WorkerOutput) => self.postMessage(message);
-export const ANALYSIS_LEADS = ["O1", "O2", "P3", "P4"] as const;
-// The selected leads stay independent; preprocessing does not re-reference them.
-const selectedChannels = (names: string[]) => {
-  const normalized = names.map((name) => name.trim().toUpperCase());
-  const indices = ANALYSIS_LEADS.map((lead) => normalized.indexOf(lead));
-  if (indices.some((index) => index < 0)) {
-    const missing = ANALYSIS_LEADS.filter((lead) => !normalized.includes(lead));
-    throw new Error(`信号分析需要导联：${ANALYSIS_LEADS.join("、")}；缺少：${missing.join("、")}`);
-  }
-  return indices;
-};
+// Each selected lead stays independent; preprocessing does not re-reference them.
+const selectedChannels = analysisChannelIndices;
 
 function resetPsdStream(): void {
   psdBuffer?.clear(); psdFilters.forEach(filter => filter.reset());
@@ -165,7 +157,7 @@ function processAvailable(): void {
     if (config.publishMatches) decision.matches = invalidWindow || transportGap || etracaModel ? [] : config.targetFrequenciesHz.map((frequencyHz, index) => ({ frequencyHz, correlation: correlations[index], score: ranking.rawScores[index] }));
     if (config.publishAnalysis) {
       const fftLength = 2 ** Math.ceil(Math.log2(windowSamples));
-      const channelSpectra: Record<PsdDisplayChannel, import("../../teaching/simulatedAnalysis").PowerSpectrum | null> = { O1: null, O2: null, P3: null, P4: null, mean: null };
+      const channelSpectra: Record<PsdDisplayChannel, import("../../teaching/simulatedAnalysis").PowerSpectrum | null> = { P3: null, P4: null, Oz: null, Pz: null, mean: null };
       if (!invalidWindow && !transportGap && psdBuffer && start >= psdOrigin && psdBuffer.totalSamplesWritten >= end - psdOrigin) {
         const displayChannels = psdBuffer.windowEnding(end - psdOrigin, windowSamples, [0, 1, 2, 3]);
         const spectra = displayChannels.map((samples, index) => spectrumWorkspaces[index].compute(samples, config!.sampleRateHz, fftLength));
@@ -181,7 +173,7 @@ function processAvailable(): void {
           channelSpectra.mean = { ...first, powerDensity: meanSpectrumPower, mean: spectra.reduce((sum, spectrum) => sum + spectrum!.mean, 0) / 4 };
         }
       }
-      const spectrum = channelSpectra.O1;
+      const spectrum = channelSpectra[DEFAULT_DISPLAY_LEAD];
       send({ type: "analysis", analysis: { sessionId, trialId, sampleRateHz: config.sampleRateHz, windowStartSample: start, windowEndSample: end,
         psdBandpass: psdFilters[0] ? { lowHz: psdFilters[0].info.lowHz, highHz: psdFilters[0].info.highHz } : null,
         spectrum, channelSpectra, matches: invalidWindow || transportGap ? [] : config.targetFrequenciesHz.map((frequencyHz, index) => ({ frequencyHz, correlation: correlations[index] ?? 0, score: ranking.rawScores[index] })),

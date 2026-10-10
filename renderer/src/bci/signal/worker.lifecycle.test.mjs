@@ -33,7 +33,7 @@ function loadWorker() {
 test('late markers cannot align a stopped trial or replace the origin of a newer trial', () => {
   const worker = loadWorker();
   worker.send({ type: 'configure', config: { sampleRateHz: 1000, channelCount: 4,
-    leadNames: ['O1', 'O2', 'P3', 'P4'], targetFrequenciesHz: [12, 15], windowSeconds: 2.5,
+    leadNames: ['P3', 'P4', 'Oz', 'Pz'], targetFrequenciesHz: [12, 15], windowSeconds: 2.5,
     hopSeconds: 0.25, harmonics: 3, confidenceThreshold: 0.52, marginThreshold: 0.08, requiredVotes: 2 } });
   worker.send({ type: 'start_trial', sessionId: 'session', trialId: 'old' });
   worker.send({ type: 'stop_trial' });
@@ -67,11 +67,48 @@ function frame(start, count, frequencies = [15], sequence = 1, gap = false, inva
 }
 function startRealWorker(publishAnalysis = true, publishMatches = false) {
   const worker = loadWorker();
-  worker.send({ type: 'configure', config: { sampleRateHz: 256, channelCount: 4, leadNames: ['O1', 'O2', 'P3', 'P4'], targetFrequenciesHz: [12, 15], windowSeconds: 2.5, hopSeconds: .25, harmonics: 3, confidenceThreshold: .52, marginThreshold: .08, requiredVotes: 2, publishAnalysis, publishMatches } });
+  worker.send({ type: 'configure', config: { sampleRateHz: 256, channelCount: 4, leadNames: ['P3', 'P4', 'Oz', 'Pz'], targetFrequenciesHz: [12, 15], windowSeconds: 2.5, hopSeconds: .25, harmonics: 3, confidenceThreshold: .52, marginThreshold: .08, requiredVotes: 2, publishAnalysis, publishMatches } });
   worker.send({ type: 'start_trial', sessionId: session, trialId: 'real' });
   worker.send({ type: 'set_trial_marker', sessionId: session, trialId: 'real', firstSampleIndex: '0' });
   return worker;
 }
+
+test('Worker selects P3/P4/Oz/Pz by real metadata even with extra O1/O2 and reordered mixed-case names', () => {
+  const worker = loadWorker();
+  worker.send({type:'configure',config:{sampleRateHz:256,channelCount:6,
+    leadNames:['O1',' pZ ','p4','O2',' OZ ','P3'],targetFrequenciesHz:[12,15],windowSeconds:2.5,
+    hopSeconds:.25,harmonics:3,confidenceThreshold:.52,marginThreshold:.08,requiredVotes:2,publishAnalysis:true}});
+  worker.send({type:'start_trial',sessionId:session,trialId:'mapped'});
+  worker.send({type:'set_trial_marker',sessionId:session,trialId:'mapped',firstSampleIndex:'0'});
+  for(const [start,count,sequence] of [[0,896,1],[896,64,2]]) {
+    const encoded = new ArrayBuffer(60+count*6*4), view = new DataView(encoded);
+    new Uint8Array(encoded,0,60).set(new Uint8Array(frame(start,count,[12],sequence),0,60));
+    view.setUint16(52,6,true);
+    const samples = new Float32Array(encoded,60);
+    for(let n=0;n<count;n++) for(let c=0;c<6;c++) {
+      // Old occipital channels are flat distractors. Selected leads have distinct DC levels.
+      samples[n*6+c] = c===0 || c===3 ? 9999 : 100*c+(c+1)*Math.sin(2*Math.PI*12*(start+n)/256);
+    }
+    worker.send({type:'eeg',buffer:encoded});
+  }
+  assert.deepEqual(worker.messages.filter(m=>m.type==='error'),[]);
+  const decision=worker.messages.filter(m=>m.type==='decision').at(-1).decision;
+  assert.deepEqual(decision.channelQuality.map(c=>c.lead),['P3','P4','Oz','Pz']);
+  for(const [index,source] of [5,2,4,1].entries()) assert.ok(Math.abs(decision.channelQuality[index].meanUv-100*source)<.01);
+  assert.notEqual(decision.reason,'flat_channel');
+  const analysis=worker.messages.filter(m=>m.type==='analysis').at(-1).analysis;
+  assert.deepEqual(analysis.spectrum,analysis.channelSpectra.Oz);
+  assert.equal('O1' in analysis.channelSpectra,false);
+});
+
+test('Worker refuses the old montage and reports genuinely missing Oz/Pz', () => {
+  const worker=loadWorker();
+  worker.send({type:'configure',config:{sampleRateHz:256,channelCount:4,leadNames:['O1','O2','P3','P4'],
+    targetFrequenciesHz:[12,15],windowSeconds:2.5,hopSeconds:.25,harmonics:3,
+    confidenceThreshold:.52,marginThreshold:.08,requiredVotes:2}});
+  assert.equal(worker.messages.some(m=>m.type==='ready'),false);
+  assert.match(worker.messages.find(m=>m.type==='error').message,/缺少：Oz、Pz/);
+});
 
 test('no data or an incomplete real EEG window never produces PSD or classification', () => {
   const worker = startRealWorker();
@@ -150,13 +187,13 @@ test('all PSD channels retain their true frequencies and share the same normaliz
     worker.send({ type: 'eeg', buffer: channelFrame(896, 64, [12, 15, 20, 24], undefined, 2) });
   }
   const result = display.messages.filter(m => m.type === 'analysis').at(-1).analysis;
-  const channels = ['O1', 'O2', 'P3', 'P4'];
+  const channels = ['P3', 'P4', 'Oz', 'Pz'];
   for (let c = 0; c < 4; c++) {
     const psd = result.channelSpectra[channels[c]], axis = psd.frequenciesHz;
     let peak = 1; for (let i = 2; axis[i] <= 64; i++) if (psd.powerDensity[i] > psd.powerDensity[peak]) peak = i;
     assert.ok(Math.abs(axis[peak] - [12, 15, 20, 24][c]) < .5);
-    assert.equal(psd.frequenciesHz, result.channelSpectra.O1.frequenciesHz);
-    assert.equal(psd.windowEnergy, result.channelSpectra.O1.windowEnergy);
+    assert.equal(psd.frequenciesHz, result.channelSpectra.Oz.frequenciesHz);
+    assert.equal(psd.windowEnergy, result.channelSpectra.Oz.windowEnergy);
     assert.equal(psd.frequencyBinHz, .25);
   }
   const mean = result.channelSpectra.mean;
@@ -182,7 +219,7 @@ test('principle PSD uses continuous display bandpass across packets without modi
   }
   const result=display.messages.filter(m=>m.type==='analysis').at(-1).analysis;
   assert.deepEqual(result.psdBandpass,{lowHz:2,highHz:45});
-  for(const [index,name] of ['O1','O2','P3','P4'].entries()) {
+  for(const [index,name] of ['P3','P4','Oz','Pz'].entries()) {
     const filtered=new ObservationFilter(256).process(sources[index]).bandpassed;
     const expected=new ReusableSpectrum().compute(filtered.subarray(320),256,1024);
     assert.deepEqual(Array.from(result.channelSpectra[name].powerDensity),Array.from(expected.powerDensity));
@@ -217,7 +254,7 @@ test('opposite channel phases do not cancel averaged PSD and invalid channels ne
   worker.send({ type: 'eeg', buffer: channelFrame(0, 896, [15, 15, 15, 15], [0, Math.PI, 0, Math.PI]) });
   const result = worker.messages.find(m => m.type === 'analysis').analysis;
   const peak = result.channelSpectra.mean.powerDensity[60];
-  assert.ok(peak > .5); assert.ok(Math.abs(peak - result.channelSpectra.O1.powerDensity[60]) < 1e-6);
+  assert.ok(peak > .5); assert.ok(Math.abs(peak - result.channelSpectra.P3.powerDensity[60]) < 1e-6);
   const bad = startRealWorker(), encoded = channelFrame(0, 896, [12, 15, 20, 24]);
   new Float32Array(encoded, 60)[1] = NaN;
   bad.send({ type: 'eeg', buffer: encoded });
@@ -248,7 +285,7 @@ test('round match snapshots reuse FBCCA scores without PSD work or changing deci
 
 test('game Worker caps analysis windows at stimulus deadline and retains real frequency selection', () => {
  const worker=loadWorker();
- worker.send({type:'configure',config:{sampleRateHz:256,channelCount:4,leadNames:['O1','O2','P3','P4'],targetFrequenciesHz:[12,15],windowSeconds:2.5,hopSeconds:.25,harmonics:3,confidenceThreshold:.52,marginThreshold:.08,requiredVotes:2,maxTrialSeconds:4}});
+ worker.send({type:'configure',config:{sampleRateHz:256,channelCount:4,leadNames:['P3','P4','Oz','Pz'],targetFrequenciesHz:[12,15],windowSeconds:2.5,hopSeconds:.25,harmonics:3,confidenceThreshold:.52,marginThreshold:.08,requiredVotes:2,maxTrialSeconds:4}});
  worker.send({type:'start_trial',sessionId:session,trialId:'game'});
  worker.send({type:'set_trial_marker',sessionId:session,trialId:'game',firstSampleIndex:'128'});
  worker.send({type:'eeg',buffer:frame(0,1024,[12])});
@@ -262,7 +299,7 @@ test('game Worker caps analysis windows at stimulus deadline and retains real fr
 test('game FBCCA uses exactly the visible four/six candidate frequencies', () => {
  for (const frequencies of [[7.5,8.57,10,12],[7.5,8.57,10,12,13.33,14]]) {
   const worker=loadWorker();
-  worker.send({type:'configure',config:{sampleRateHz:256,channelCount:4,leadNames:['O1','O2','P3','P4'],targetFrequenciesHz:frequencies,windowSeconds:2.5,hopSeconds:.25,harmonics:3,confidenceThreshold:.52,marginThreshold:.08,requiredVotes:2,publishMatches:true,maxTrialSeconds:4}});
+  worker.send({type:'configure',config:{sampleRateHz:256,channelCount:4,leadNames:['P3','P4','Oz','Pz'],targetFrequenciesHz:frequencies,windowSeconds:2.5,hopSeconds:.25,harmonics:3,confidenceThreshold:.52,marginThreshold:.08,requiredVotes:2,publishMatches:true,maxTrialSeconds:4}});
   worker.send({type:'start_trial',sessionId:session,trialId:'game'});
   worker.send({type:'set_trial_marker',sessionId:session,trialId:'game',firstSampleIndex:'0'});
   worker.send({type:'eeg',buffer:frame(0,960,[10])});
@@ -279,7 +316,7 @@ test('full-window decisions record effective duration and reject a flat required
  assert.equal(decision.effectiveWindowSamples,640);
  assert.equal(decision.filterWarmupSamples,256);
  assert.equal(decision.windowEndSample-decision.windowStartSample,640);
- assert.deepEqual(decision.channelQuality.map(c=>c.lead),['O1','O2','P3','P4']);
+ assert.deepEqual(decision.channelQuality.map(c=>c.lead),['P3','P4','Oz','Pz']);
  assert.equal(decision.classifierName,'fbcca-cca');assert.equal(decision.classifierVersion,'0.3.0');
  const flat=startRealWorker(false), encoded=frame(0,960,[15]), samples=new Float32Array(encoded,60);
  for(let n=0;n<960;n++)samples[n*4+2]=1000;
@@ -290,7 +327,7 @@ test('full-window decisions record effective duration and reject a flat required
 
 test('sample gaps keep real acquisition time and cannot move post-deadline EEG into a game window',()=>{
  const worker=loadWorker();
- worker.send({type:'configure',config:{sampleRateHz:256,channelCount:4,leadNames:['O1','O2','P3','P4'],targetFrequenciesHz:[12,15],windowSeconds:2.5,hopSeconds:.25,harmonics:3,confidenceThreshold:.52,marginThreshold:.08,requiredVotes:2,maxTrialSeconds:6}});
+ worker.send({type:'configure',config:{sampleRateHz:256,channelCount:4,leadNames:['P3','P4','Oz','Pz'],targetFrequenciesHz:[12,15],windowSeconds:2.5,hopSeconds:.25,harmonics:3,confidenceThreshold:.52,marginThreshold:.08,requiredVotes:2,maxTrialSeconds:6}});
  worker.send({type:'start_trial',sessionId:session,trialId:'gapped-game'});
  worker.send({type:'set_trial_marker',sessionId:session,trialId:'gapped-game',firstSampleIndex:'0'});
  worker.send({type:'eeg',buffer:frame(0,256,[12],1)});

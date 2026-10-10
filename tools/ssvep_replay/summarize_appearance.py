@@ -1,3 +1,4 @@
+from .leads import export_roi
 """Descriptive stage/combined plots and audit, without changing predefined tests."""
 import argparse
 import csv
@@ -14,6 +15,8 @@ from .analyze_appearance import COMPONENTS, WINDOWS, PROTOCOL_FORMS, log_ratio
 def summarize(folder):
     r=json.loads((folder/'appearance-analysis.json').read_text(encoding='utf8'))
     index=json.loads((folder/'index.json').read_text(encoding='utf8'))
+    roi_indices, roi_leads = export_roi(index['channels'])
+    if tuple(r.get('roiLeads', roi_leads)) != roi_leads: raise ValueError('Report ROI does not match export montage')
     audit=json.loads((folder/'alignment-audit.json').read_text(encoding='utf8')) if (folder/'alignment-audit.json').exists() else None
     rows=sorted(r['trials'],key=lambda t:t['sequenceIndex'])
     forms=PROTOCOL_FORMS[r['protocol']]
@@ -101,14 +104,14 @@ def summarize(folder):
     fig,axs=plt.subplots(nrows,ncols,figsize=(14,2*nrows),squeeze=False,constrained_layout=True)
     for ax,t in zip(axs.flat,rows):
         y=filtered[t['trialId']];tt=np.arange(len(y))/fs
-        ax.plot(tt,y[:,0],lw=.5,label='O1');ax.plot(tt,y[:,1],lw=.5,alpha=.65,label='O2')
+        ax.plot(tt,y[:,roi_indices[0]],lw=.5,label=roi_leads[0]);ax.plot(tt,y[:,roi_indices[1]],lw=.5,alpha=.65,label=roi_leads[1])
         ax.axvspan(0,1.5,color='#ddd',alpha=.5);ax.axvline(5.5,color='#943d46',ls='--',lw=.6);ax.set(xlim=(0,10),title=f'{t["sequenceIndex"]+1} · {t["targetAppearance"]}/{t["condition"]}',xlabel='秒',ylabel='μV')
     for ax in list(axs.flat)[len(rows):]:ax.axis('off')
     fig.savefig(folder/'all-trials-waveforms.png',dpi=110);plt.close(fig)
     blocks=len(set((t['comparisonRunId'],t['repetition']) for t in valid))
     lines=['# 阶段分析摘要','',f'纳入 {len(valid)}/{len(rows)} 次，独立组数 {blocks}。人工注视标注确认 {sum(t.get("attentionConfirmed") is True for t in valid)}/{len(valid)} 次；未确认试次保留探索性标记。','',
            '## 完整 8 秒：基频和谐波','',
-           '局部 SNR 为 O1/O2 平均功率与邻频功率比的逐次中位数；增强为同组自身静态对照的配对 dB 均值，两者不是同一个指标。','',
+           f'局部 SNR 为 {"/".join(roi_leads)} 平均功率与邻频功率比的逐次中位数；增强为同组自身静态对照的配对 dB 均值，两者不是同一个指标。','',
            '|形式|刺激|分量|局部 SNR dB|相对静态增强 dB|正增强次数|','|---|---|---:|---:|---:|---:|']
     for e in effects:
         lines.append(f'|{e["appearance"]}|{e["condition"]}|{e["hz"]} Hz|{e["fullMedianSnrDb"]:+.2f}|{e["fullMeanEnhancementDb"]:+.2f}|{e["positivePairs"]}/{len(e["pairs"])}|')
@@ -128,7 +131,7 @@ def summarize(folder):
             data=[t for t in selectivity if t['appearance']==a and t['hz']==hz]
             values=[t['roiMatchingVsOtherDb'] for t in data]
             lines.append(f'|{a}|{hz} Hz|{np.mean(values):+.2f}|{sum(v>0 for v in values)}/{len(values)}|')
-    lines+=['','## 四导联基频局部 SNR（完整窗中位数）','', '|形式|刺激|O1 dB|O2 dB|P3 dB|P4 dB|','|---|---|---:|---:|---:|---:|']
+    lines+=['','## 四导联基频局部 SNR（完整窗中位数）','', '|形式|刺激|'+'|'.join(f'{lead} dB' for lead in leads)+'|','|---|---|---:|---:|---:|---:|']
     for a in forms:
         for c,hz in (('12hz',12),('15hz',15)):
             ts=[t for t in valid if t['targetAppearance']==a and t['condition']==c]
@@ -153,7 +156,7 @@ def summarize(folder):
             '- 未计算硬件同步相位锁定，未运行游戏正确率测试，未修改识别参数。','',
             '## 图','', '![同试次前后 SNR](early-late-snr.png)', '',
             *[f'![{appearance} 四导联谱]({appearance}-spectra.png)\n' for appearance in forms], '',
-            '![全部试次 O1/O2 波形](all-trials-waveforms.png)','']
+            f'![全部试次 {"/".join(roi_leads)} 波形](all-trials-waveforms.png)','']
     (folder/'summary.md').write_text('\n'.join(lines),encoding='utf8')
     print(json.dumps({'effects':effects,'rawTemporal':[{k:v for k,v in t.items()} for t in temporal if t['hz'] in (12,15)],
                       'qualityRmsRangeUv':[min(q['filteredRmsUv'] for q in quality),max(q['filteredRmsUv'] for q in quality)],

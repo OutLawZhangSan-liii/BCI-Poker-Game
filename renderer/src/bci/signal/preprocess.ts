@@ -1,7 +1,7 @@
 /**
  * Online EEG preprocessing shared by calibration and inference.
  *
- * The worker selects O1, O2, P3 and P4 before calling this module.  The
+ * The worker selects P3, P4, Oz and Pz before calling this module.  The
  * current experiment intentionally does not re-reference channels: removing
  * that step preserves each electrode's measured signal for inspection.
  */

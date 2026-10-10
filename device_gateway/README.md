@@ -249,7 +249,7 @@ python -m device_gateway.capture --seconds 3 --request-eeg-property
 
 ## 阶段 16：固定信号分析导联
 
-- 信号预处理、FBCCA、eTRCA 校准和在线识别严格只取 `O1、O2、P3、P4` 四个导联。
+- 信号预处理、FBCCA、eTRCA 校准和在线识别严格只取 `P3、P4、Oz、Pz` 四个导联。
 - 导联名称会自动去除采集软件可能附带的空格；缺少任一指定导联时，Worker 直接报错并阻止分析启动，不回退到其他通道。
 - 原始 EEG 仍保存设备提供的全部通道，便于后续复核和更换算法。
 - 真机训练发现两目标 eTRCA 模型约 118 KB，超过原 64 KB WebSocket 控制帧上限并触发断连。认证后控制消息上限已调整为 4 MB，未认证 hello 仍限制为 16 KB。
@@ -259,7 +259,7 @@ python -m device_gateway.capture --seconds 3 --request-eeg-property
 ## 阶段 17：预处理与简单刺激参数明确化
 
 - 新增 `renderer/src/bci/signal/preprocess.ts`，将在线分析预处理固定为“逐导联去均值”，移除重参考步骤。校准和在线推理共用同一函数，避免训练/推理流程不一致。
-- `signal.worker.ts` 直接使用四个独立导联，分析导联仍严格为 `O1、O2、P3、P4`。
+- `signal.worker.ts` 直接使用四个独立导联，分析导联仍严格为 `P3、P4、Oz、Pz`。
 - `SIMPLE_TARGETS` 当前被试复测频率版本为 `simple-frequency-v6`：左 `12 Hz / 0 rad`、右 `15 Hz / π/2`，几何使用 `simple-geometry-v2` 的 `(0.24, 0.64)` 与 `(0.76, 0.64)`；v4/v5 及更早数据不得混入同一频率模型，困难 1/2 的演示频率保持原配置。
 - 新增 `python -m device_gateway.inspect_eeg`，读取会话 `eeg.bin` 或限时采集 `device-frames.bin`，按同样预处理输出四导联时域统计、通道相关性和 1–45 Hz 频谱峰值；加 `--plot` 生成 PNG。
 

@@ -1,0 +1,87 @@
+/* The existing page header doubles as the native window's drag surface. */
+body .shell:is(.shell--game, .shell--teaching, .shell--lab) {
+  --window-gutter: clamp(12px, 1.5vw, 28px);
+  padding-top: 0;
+}
+.shell .app-header.app-header--window {
+  box-sizing: border-box;
+  width: calc(100% + 2 * var(--window-gutter));
+  height: 64px;
+  min-height: 64px;
+  margin-inline: calc(-1 * var(--window-gutter));
+  margin-bottom: 10px;
+  padding-block: 0;
+  padding-left: max(var(--window-gutter), env(titlebar-area-x, 0px));
+  padding-right: max(156px, calc(100vw - env(titlebar-area-width, 100vw) - env(titlebar-area-x, 0px) + 16px));
+  display: grid;
+  grid-template-columns: minmax(190px, 1fr) auto auto;
+  align-items: center;
+  gap: 16px;
+  background: var(--color-app);
+  border-bottom: 1px solid rgba(185, 173, 143, .22);
+  -webkit-app-region: drag;
+  app-region: drag;
+  user-select: none;
+}
+.shell .app-header.app-header--window .app-header__identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 44px;
+  min-height: 44px;
+}
+.app-header--window .app-header__icon {
+  flex: 0 0 42px;
+  width: 42px;
+  height: 42px;
+  object-fit: contain;
+  border-radius: 9px;
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+.app-header--window .app-header__brand { min-width: 0; }
+.shell .app-header.app-header--window .app-header__title {
+  height: auto;
+  font-size: 24px;
+  line-height: 1.15;
+  font-weight: 600;
+  letter-spacing: .035em;
+  white-space: nowrap;
+  --brand-wordmark-height: 38px;
+}
+.app-header--window .app-header__title::before { display: none; }
+.shell .app-header.app-header--window .view-nav,
+.shell .app-header.app-header--window .app-header__status {
+  grid-column: auto;
+  grid-row: auto;
+  flex-wrap: nowrap;
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+.app-header--window :is(button, a, input, select) {
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+/* Keep native window dragging available while the intro covers the page. */
+.intro-flip::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 64px;
+  z-index: 1;
+  -webkit-app-region: drag;
+  app-region: drag;
+}
+@media (max-width: 1150px) {
+  .shell .app-header.app-header--window { gap: 12px; grid-template-columns: minmax(175px, 1fr) auto auto; }
+  .shell .app-header.app-header--window .view-nav.view-nav--segmented { width: 310px; }
+  .shell .app-header.app-header--window .view-nav.view-nav--segmented button { font-size: 14px; }
+  .shell .app-header.app-header--window .status-badge { font-size: 11px; padding-inline: 7px; }
+  .shell .app-header.app-header--window .app-header__title { font-size: 22px; --brand-wordmark-height: 36px; }
+  .app-header--window .app-header__icon { width: 38px; height: 38px; flex-basis: 38px; }
+}
+@media (max-width: 850px) {
+  .shell .app-header.app-header--window { height: 108px; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: 64px 44px; gap: 0 12px; }
+  .shell .app-header.app-header--window .view-nav.view-nav--segmented { grid-column: 1 / -1; grid-row: 2; width: 100%; align-self: start; }
+}
+@media (max-width: 720px) { body .shell:is(.shell--game, .shell--teaching, .shell--lab) { --window-gutter: 12px; } }

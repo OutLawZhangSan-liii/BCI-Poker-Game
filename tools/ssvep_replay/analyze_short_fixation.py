@@ -1,3 +1,4 @@
+from .leads import export_roi
 """Descriptive 30-trial screening. Shared static references are not replicates."""
 import argparse
 import csv
@@ -16,8 +17,7 @@ MODES = ('fixed', 'synchronous')
 
 def analyze(directory):
     index = json.loads((directory/'index.json').read_text(encoding='utf8'))
-    if index['channels'] != ['O1','O2','P3','P4']:
-        raise ValueError('Explicit O1/O2/P3/P4 channel order required')
+    roi_indices, roi_leads = export_roi(index['channels'])
     rows=[]
     for item in index['trials']:
         if item.get('comparisonProtocol') != SHORT_FIXATION_PROTOCOL:
@@ -36,7 +36,7 @@ def analyze(directory):
                               'endExclusive':first+round(hi*index['sampleRateHz'])}
                         for name,(lo,hi) in WINDOWS.items()} if isinstance(first,int) else None
         rows.append({**item,'excludeReasons':reasons,'sampleWindows':sample_windows,
-                     'spectra':segmented_spectra(raw,index['sampleRateHz']) if not reasons else None})
+                     'spectra':segmented_spectra(raw,index['sampleRateHz'],roi_indices) if not reasons else None})
     # Duplicate conditions are rejected, not silently chosen or counted twice.
     keys={}
     for row in rows:
@@ -110,7 +110,7 @@ def analyze(directory):
                                 'pairs':pairs,'pairedActiveBlocks':len(pairs),
                                 'meanReferenceAdjustedDifferenceDb':float(np.mean(adjusted)) if adjusted else None,
                                 'positiveAdjustedPairs':sum(v>0 for v in adjusted),'adjustedPairs':len(adjusted)})
-    report={'protocol':SHORT_FIXATION_PROTOCOL,'plannedTrials':30,'trials':rows,'effects':effects,
+    report={'protocol':SHORT_FIXATION_PROTOCOL,'channels':index['channels'],'roiLeads':roi_leads,'plannedTrials':30,'trials':rows,'effects':effects,
             'temporal':temporal,'comparisons':comparisons,'validTrials':len(valid),'staticReferences':len(references),
             'inference':'Descriptive screening only; two active repeats, one shared static reference per variant. No significance tests or independent static replicates.',
             'hardwareSynchronized':False,'analysisWindowsSeconds':WINDOWS}
@@ -125,7 +125,7 @@ def analyze(directory):
                         writer.writerow([r['trialId'],r['sequenceIndex']+1,r['targetAppearance'],r['fixationMode'],r['condition'],r['repetition'],window,hz,lead,
                                          metric['psdUv2PerHz'][ch],metric['snrDb'][ch],metric['bandRmsUv'][ch]])
     fmt=lambda value:'缺少有效配对' if value is None else f'{value:+.2f}'
-    lines=['# 短版注视点与刺激形式筛选','',f'有效 {len(valid)}/{len(rows)} 次，计划 30 次；有效一次性静态参考 {len(references)} 次。',
+    lines=['# 短版注视点与刺激形式筛选','',f'导联：{" / ".join(index["channels"])}；功率 ROI：{" / ".join(roi_leads)}。',f'有效 {len(valid)}/{len(rows)} 次，计划 30 次；有效一次性静态参考 {len(references)} 次。',
            f'人工确认持续注视 {sum(r.get("attentionConfirmed") is True for r in valid)}/{len(valid)} 次；未确认记录只作探索性分析。','',
            '## 基频与一次谐波','',
            '|形式|注视点|刺激|分量 Hz|有效刺激次数|局部 SNR 中位数 dB|相对静态增强均值 dB|正增强次数|',

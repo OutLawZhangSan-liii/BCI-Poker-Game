@@ -1,7 +1,7 @@
 """Inspect a recorded BrainGame session in the time and frequency domains.
 
 The preprocessing intentionally mirrors the renderer after the rereference
-change: select O1/O2/P3/P4 and subtract each channel's own mean.  No channel
+change: select P3/P4/Oz/Pz and subtract each channel's own mean.  No channel
 is subtracted from another channel.  The script then computes an averaged,
 Hann-windowed FFT so the current session's stimulus bands can be inspected.
 
@@ -26,7 +26,7 @@ from .frame_parser import LegacyFrameParser
 from .session_writer import read_eeg_records
 
 
-ANALYSIS_LEADS = ("O1", "O2", "P3", "P4")
+from .analysis_leads import ANALYSIS_LEADS, analysis_channel_indices
 EEG_ATTRIBUTE_ID = 5
 TARGET_FREQUENCIES_HZ = (12.0, 16.5)
 
@@ -95,10 +95,7 @@ def _dimensions(metadata: dict) -> tuple[float, int, list[str], list[int]]:
     lead_names = [str(name).strip().upper() for name in properties.get("lead_names", [])]
     if sample_rate <= 0 or channel_count <= 0 or len(lead_names) != channel_count:
         raise ValueError("recording metadata does not contain valid device dimensions/lead names")
-    missing = [lead for lead in ANALYSIS_LEADS if lead not in lead_names]
-    if missing:
-        raise ValueError(f"required analysis leads missing from recording: {', '.join(missing)}")
-    return sample_rate, channel_count, lead_names, [lead_names.index(lead) for lead in ANALYSIS_LEADS]
+    return sample_rate, channel_count, lead_names, analysis_channel_indices(lead_names)
 
 
 def _select_blocks(blocks: Iterable[tuple[int, np.ndarray]], seconds: float, sample_rate: float, start_sample: int, indices: list[int]) -> np.ndarray:
@@ -194,7 +191,7 @@ def band_power(frequencies: np.ndarray, spectrum: np.ndarray, center_hz: float, 
 def print_report(session_dir: Path, raw: np.ndarray, processed: np.ndarray, sample_rate: float, frequencies: np.ndarray, spectrum: np.ndarray, target_frequencies: tuple[float, ...] = TARGET_FREQUENCIES_HZ) -> None:
     print(f"session: {session_dir}")
     print(f"samples: {len(raw)} per channel ({len(raw) / sample_rate:.2f} s), sample rate: {sample_rate:g} Hz")
-    print("preprocess: O1/O2/P3/P4 selected; per-channel mean removed; rereference: OFF")
+    print("preprocess: P3/P4/Oz/Pz selected; per-channel mean removed; rereference: OFF")
     print("\ntime-domain statistics (after preprocessing):")
     for index, lead in enumerate(ANALYSIS_LEADS):
         values = processed[:, index]

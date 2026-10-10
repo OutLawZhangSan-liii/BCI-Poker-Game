@@ -1,3 +1,4 @@
+import { ANALYSIS_LEADS } from "../bci/signal/leads";
 import { useLayoutEffect, useRef } from "react";
 import type { RealTrialAnalysis } from "../bci/signal/types";
 // Fixed display scale for unbounded FBCCA scores; independent of other candidates.
@@ -51,7 +52,7 @@ export function DemoClassification({ analysis, labels, status }: { analysis: Rea
   const reason = analysis?.reason === "unstable_vote" ? "等待连续稳定的匹配结果" : analysis?.rejected && !invalid ? "当前匹配强度未达到判定阈值" : null;
   return <article className="demo-cca" aria-label="真实 EEG CCA 匹配与分类结果">
     <h4>CCA 匹配（FBCCA）</h4>
-    <small className="demo-cca-description">FBCCA 使用 O1 / O2 / P3 / P4 四通道联合匹配，条形按固定分数尺度显示匹配强度。</small>
+    <small className="demo-cca-description">FBCCA 使用 {ANALYSIS_LEADS.join(" / ")} 四通道联合匹配，条形按固定分数尺度显示匹配强度。</small>
     <div className="demo-cca-list" ref={listRef}>{ranked.map((match, rank) => {
       const displayScore = Number.isFinite(match.score) ? Math.max(0, match.score) : 0;
       const displayStrength = displayScore / (displayScore + SCORE_DISPLAY_SCALE);

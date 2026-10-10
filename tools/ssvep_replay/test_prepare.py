@@ -18,7 +18,7 @@ class PrepareTests(unittest.TestCase):
             frame = b'\xaa\x05'+struct.pack('<HI', raw.size, len(payload))+payload+b'\x55'
             (session/'eeg.bin').write_bytes(b'BGEG\x01\x00'+struct.pack('<QQQI', 1, 0, 1000000000, len(frame))+frame)
             (session/'session.json').write_text(json.dumps({'sessionId':'synthetic', 'deviceProperties':{
-                'lead_names':['O1','O2','P3','P4'], 'sample_rate_hz':250}}), encoding='utf8')
+                'lead_names':[' pz ','P4','OZ','p3'], 'sample_rate_hz':250}}), encoding='utf8')
             start = {'markerType':'stimulus_start','trialId':'synthetic-trial','markerSampleIndex':'100',
                      'gatewayMonotonicNs':1000000000,'rendererPerformanceMs':12,
                      'targets':[{'frequencyHz':12}], 'comparisonProtocol':PROTOCOL,
@@ -42,7 +42,7 @@ class PrepareTests(unittest.TestCase):
             self.assertEqual(trial['fixationModulation'],start['fixationModulation'])
             self.assertEqual(trial['eegFreshnessPolicy'],'packet-jitter-tolerance-v1')
             self.assertFalse(trial['attentionConfirmed'])
-            np.testing.assert_array_equal(np.fromfile(out/trial['file'],dtype='<f4').reshape(-1,4),raw[100:2600])
+            np.testing.assert_array_equal(np.fromfile(out/trial['file'],dtype='<f4').reshape(-1,4),raw[100:2600][:,[3,1,2,0]])
             self.assertEqual((session/'markers.jsonl').read_text(encoding='utf8'),markers)
 
 

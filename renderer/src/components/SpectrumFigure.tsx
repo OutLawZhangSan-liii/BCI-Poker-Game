@@ -1,3 +1,4 @@
+import { DEFAULT_DISPLAY_LEAD } from "../bci/signal/leads";
 import { useEffect, useRef, type ReactNode } from "react";
 import { drawFrequencyTicks, drawPlotAxes, plotBackground } from "./AnalysisPlotStyle";
 import { EEG_PSD_UNIT } from "../bci/units";
@@ -120,7 +121,7 @@ export function drawSpectrum(canvas: HTMLCanvasElement, observedSpectrum: PowerS
 
 
 /** Shared PSD renderer; its only input is a computed spectrum, never generated samples. */
-export function SpectrumFigure({ spectrum, channelLabel = "O1", headerActions, emptyMessage, targetFrequencies = [] }: { spectrum: PowerSpectrum | null; channelLabel?: string; headerActions?: ReactNode; emptyMessage?: string; targetFrequencies?: number[] }) {
+export function SpectrumFigure({ spectrum, channelLabel = DEFAULT_DISPLAY_LEAD, headerActions, emptyMessage, targetFrequencies = [] }: { spectrum: PowerSpectrum | null; channelLabel?: string; headerActions?: ReactNode; emptyMessage?: string; targetFrequencies?: number[] }) {
   const canvas = useRef<HTMLCanvasElement>(null), latest = useRef({ spectrum, targetFrequencies });
   latest.current = { spectrum, targetFrequencies };
   const frequencyKey = targetFrequencies.join(",");

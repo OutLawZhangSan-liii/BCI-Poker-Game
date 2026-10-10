@@ -66,7 +66,10 @@ export class GatewaySidecar extends EventEmitter {
       ? ["--port", "0"]
       : ["-m", "device_gateway.gateway_app", "--port", "0"];
     const child = spawn(executable, args, {
-      cwd: this.options.projectRoot,
+      // app.asar is a virtual directory, unsuitable as a child process cwd.
+      cwd: this.options.packagedExecutable
+        ? path.dirname(this.options.packagedExecutable)
+        : this.options.projectRoot,
       windowsHide: true,
       stdio: ["pipe", "pipe", "pipe"],
       env: {

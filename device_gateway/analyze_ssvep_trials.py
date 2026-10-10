@@ -1,6 +1,6 @@
 """Analyze marker-aligned isolated SSVEP diagnostic trials.
 
-Only O1/O2/P3/P4 are loaded.  Each channel is independently de-meaned;
+Only P3/P4/Oz/Pz are loaded.  Each channel is independently de-meaned;
 unused electrodes are never used as a reference.  Fundamental-frequency SNR
 is estimated from a 2-second Welch spectrum, whose 0.5 Hz bins place both
 7.5 Hz and 16.5 Hz exactly on FFT bins.
@@ -245,10 +245,10 @@ def analyze(session_dir: Path, onset_seconds: float = 0.5, end_seconds: float = 
 
     print(f"session: {session_dir}")
     print(f"status: {metadata.get('status')}; samples/channel: {len(raw)}; sample rate: {sample_rate:g} Hz")
-    print("preprocess: O1/O2/P3/P4; per-channel mean removal; rereference OFF")
+    print("preprocess: P3/P4/Oz/Pz; per-channel mean removal; rereference OFF")
     print(f"analysis window: {onset_seconds:.1f}-{end_seconds:.1f} s after actual stimulus first-frame marker")
     print(f"isolated trials: {len(trial_rows)} (labels: {Counter(row['label'] for row in trial_rows)})")
-    print("\ntrial target SNR (dB; channel mean, then O1/O2/P3/P4):")
+    print("\ntrial target SNR (dB; channel mean, then P3/P4/Oz/Pz):")
     for row in trial_rows:
         active = row["label"]
         inactive = 1 - active

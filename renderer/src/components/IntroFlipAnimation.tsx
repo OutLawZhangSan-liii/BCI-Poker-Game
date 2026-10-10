@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { IntroNeuron } from "./IntroNeuron";
+import { BrandWordmark } from "./BrandWordmark";
 import "./IntroFlipAnimation.css";
 
 export const FORCE_INTRO = false;
@@ -14,7 +16,8 @@ export function shouldPlayIntro() {
 
 let preloaded: Promise<HTMLImageElement[]> | undefined;
 function preloadFrames() {
-  return preloaded ??= Promise.all(FRAMES.map(src => new Promise<HTMLImageElement>((resolve, reject) => {
+  const sources = [...FRAMES, `${import.meta.env.BASE_URL}assets/branding/neuron-icon.png`, `${import.meta.env.BASE_URL}assets/branding/shoujin-wordmark.svg`];
+  return preloaded ??= Promise.all(sources.map(src => new Promise<HTMLImageElement>((resolve, reject) => {
     const image = new Image();
     image.onload = () => { image.decode().then(() => resolve(image), reject); };
     image.onerror = () => reject(new Error("开场素材加载失败"));
@@ -54,7 +57,8 @@ export function IntroFlipAnimation({ onReveal, onComplete }: { onReveal: () => v
         frame = requestAnimationFrame(() => {
           if (cancelled || exiting.current) return;
           setRunning(true);
-          // Turn ends at 2750 ms, then the title fades in for 1000 ms and holds for 500 ms.
+          // Turn ends at 2750 ms; the logo draws alongside the 1000 ms title reveal.
+          // Both hold together for 500 ms before transitioning into the real table.
           finishTimer = setTimeout(() => actions.current.leave(300), 4250);
         });
       });
@@ -73,7 +77,8 @@ export function IntroFlipAnimation({ onReveal, onComplete }: { onReveal: () => v
       <div className="intro-flip__scene">
         <img className="intro-flip__background" src={FRAMES[0]} alt="" draggable={false} />
         <div className="intro-flip__title-position">
-          <span className="intro-flip__title">神工 · 神游</span>
+          <IntroNeuron />
+          <span className="intro-flip__title"><BrandWordmark /></span>
         </div>
         <div className="intro-flip__card-position">
           <div className="intro-flip__card">

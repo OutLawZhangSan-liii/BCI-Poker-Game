@@ -5,6 +5,9 @@ import json
 import struct
 from pathlib import Path
 import numpy as np
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from device_gateway.analysis_leads import ANALYSIS_LEADS, analysis_channel_indices
 
 def jsonl(path):
     result = []
@@ -28,7 +31,7 @@ def main():
     meta = json.loads((args.session/'session.json').read_text(encoding='utf-8'))
     props = meta['deviceProperties']
     leads = [name.strip().upper() for name in props['lead_names']]
-    selected = [leads.index(name) for name in ('O1', 'O2', 'P3', 'P4')]
+    selected = analysis_channel_indices(leads)
     annotations = json.loads(args.annotations.read_text(encoding='utf-8')) if args.annotations else {}
     chunks, prior, gaps, bad = [], None, 0, 0
     snapshot_size = (args.session/'eeg.bin').stat().st_size
@@ -58,7 +61,7 @@ def main():
     ends = {m['trialId']: m for m in markers if m.get('markerType') == 'stimulus_end'}
     results = {m['trialId']: m for m in markers if m.get('markerType') == 'game_result'}
     fs = props['sample_rate_hz']
-    index = {'sessionId': meta['sessionId'], 'sampleRateHz': fs, 'channels': ['O1','O2','P3','P4'],
+    index = {'sessionId': meta['sessionId'], 'sampleRateHz': fs, 'channels': list(ANALYSIS_LEADS),
              'snapshotBytes': snapshot_size, 'sampleOrSequenceGaps': gaps, 'nonfiniteValues': bad, 'trials': []}
     prior_end = 0
     for start in (m for m in markers if m.get('markerType') == 'stimulus_start'):

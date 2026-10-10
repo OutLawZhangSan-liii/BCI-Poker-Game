@@ -1,3 +1,4 @@
+import { DEFAULT_DISPLAY_LEAD } from "../bci/signal/leads";
 import { ReusableSpectrum } from "../teaching/reusableSpectrum";
 import { RealSpectrogram } from "./RealSpectrogram";
 import { AnalysisSummary } from "./AnalysisSummary";
@@ -248,7 +249,7 @@ export function RealEegAnalysisPanel({ active = true, visible = active, activeSe
   // metadata cannot create an unbounded option list before validation.
   const normalizedNames = useMemo(() => metadataError ? [] : Array.from({ length: properties?.channel_count ?? 0 }, (_, index) => names[index]?.trim() || `通道 ${index + 1}（名称缺失）`), [properties?.channel_count, namesSignature, metadataError]);
   const metadataSignature = `${properties?.channel_count ?? 0}|${namesSignature}`;
-  const preferredIndex = normalizedNames.findIndex((name) => name.toUpperCase() === "O1");
+  const preferredIndex = normalizedNames.findIndex((name) => name.toUpperCase() === DEFAULT_DISPLAY_LEAD.toUpperCase());
   useEffect(() => {
     generationRef.current += 1;
     acceptingRef.current = false;
@@ -351,7 +352,7 @@ export function RealEegAnalysisPanel({ active = true, visible = active, activeSe
     {actionsTarget ? visible && createPortal(observationControls, actionsTarget) : observationControls}
     {compact && noSession && <div className="signal-viewer-toolbar">{channelControl}</div>}
     {metadataError && <p className="sim-analysis-hint is-warning" role="alert">{metadataError}；已停止实时图表分析。</p>}
-    {noPreferredChannel && !metadataError && <p className="sim-analysis-hint" role="status" title="设备元数据未提供 O1，可从实际通道列表中选择其他通道。">未提供 O1 · 可选其他通道 ⓘ</p>}
+    {noPreferredChannel && !metadataError && <p className="sim-analysis-hint" role="status" title={`设备元数据未提供 ${DEFAULT_DISPLAY_LEAD}，可从实际通道列表中选择其他通道。`}>未提供 {DEFAULT_DISPLAY_LEAD} · 可选其他通道 ⓘ</p>}
     {noSession && !metadataError && <p className="sim-analysis-hint" role="status" title="请先在设备与实验中连接网关并开始采集；当前不会生成替代波形。">未开始采集 ⓘ</p>}
     {compact ? <Tooltip text={`窗口 ${snapshot.windowSamples || "—"} 点 · 频率栅格 ${snapshot.sampleRateHz && snapshot.fftLength ? (snapshot.sampleRateHz / snapshot.fftLength).toFixed(3) : "—"} Hz · ${statusText[snapshot.state]}`}><div className="analysis-meta-bar">{snapshot.sampleRateHz ?? properties?.sample_rate_hz ?? "—"} Hz · {REAL_EEG_WINDOW_SECONDS} s · FFT {snapshot.fftLength || "—"} · {snapshot.state === "running" ? "运行中" : snapshot.state === "paused" ? "已暂停" : snapshot.state === "invalid" ? "异常" : snapshot.state === "interrupted" ? "数据中断" : snapshot.state === "accumulating" ? "积累窗口" : "等待数据"}</div></Tooltip> : <details className="analysis-collapsible"><summary>分析参数</summary><div className="sim-analysis-config"><span>Fs {snapshot.sampleRateHz ?? properties?.sample_rate_hz ?? "—"} Hz</span><span>窗口 {snapshot.windowSamples || "—"} 点（约 {REAL_EEG_WINDOW_SECONDS} s）</span><span>FFT {snapshot.fftLength || "—"} 点</span><span>频率栅格 {snapshot.sampleRateHz && snapshot.fftLength ? (snapshot.sampleRateHz / snapshot.fftLength).toFixed(3) : "—"} Hz</span><span>状态：{statusText[snapshot.state]}</span></div></details>}
     {!compact && <div className="real-eeg-analysis-status"><div className="analysis-meta-bar">{snapshot.sampleRateHz ?? properties?.sample_rate_hz ?? "—"} Hz · {REAL_EEG_WINDOW_SECONDS} s · FFT {snapshot.fftLength || "—"} · {statusText[snapshot.state]} · {processingDescription(snapshot)}</div><AnalysisSummary samples={visibleSamples} spectrum={spectrum} /></div>}

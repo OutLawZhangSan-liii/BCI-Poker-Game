@@ -8,6 +8,9 @@ import { performance } from 'node:perf_hooks';
 
 const directory = path.resolve(process.argv[2]);
 const index = JSON.parse(fs.readFileSync(path.join(directory, 'index.json'), 'utf8'));
+if (![
+  ['P3','P4','OZ','PZ'], ['O1','O2','P3','P4'],
+].some(leads => JSON.stringify(leads) === JSON.stringify(index.channels.map(name => name.trim().toUpperCase())))) throw new Error('Invalid export channel order');
 const context = vm.createContext({ exports: {}, console });
 vm.runInContext(ts.transpileModule(fs.readFileSync('renderer/src/bci/signal/fbcca.ts','utf8'), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
@@ -59,7 +62,7 @@ for(const trial of index.trials) {
   output.trials.push(result);
 }
 fs.writeFileSync(path.join(directory,'comparison.json'),JSON.stringify(output,null,2));
-let report='# FBCCA 真实数据回放比较\n\n使用 O1 / O2 / P3 / P4；不训练个人模型，不自动下调门槛。\n\n';
+let report=`# FBCCA 真实数据回放比较\n\n使用 ${index.channels.join(' / ')}；不训练个人模型，不自动下调门槛。\n\n`;
 report+='|明确注视试次|滤波方式|窗口/有效秒数|窗口数|接受数|接受窗口相符比例|静息接受/窗口数|\n|---|---|---|---:|---:|---|---|\n';
 for(const t of output.trials.filter(t=>t.attentionConfirmed))for(const c of t.comparisons) {
   report+=`|${t.trialId.slice(0,8)} · ${t.frequencies[t.cueIndex]}Hz|${c.method}|${c.seconds}/${c.effectiveSeconds.toFixed(3)}|${c.windows.length}|${c.acceptedWindows}|${c.labelledAgreement===null?'—':(100*c.labelledAgreement).toFixed(1)+'%'}|${c.idleAcceptedWindows}/${c.baselineWindows.length}|\n`;
