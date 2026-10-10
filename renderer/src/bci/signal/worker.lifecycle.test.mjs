@@ -6,6 +6,8 @@ import vm from 'node:vm';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
+import os from 'node:os';
+import {execFileSync} from 'node:child_process';
 import { ObservationFilter } from '../../teaching/observationFilter.ts';
 import { ReusableSpectrum } from '../../teaching/reusableSpectrum.ts';
 
@@ -72,6 +74,26 @@ function startRealWorker(publishAnalysis = true, publishMatches = false) {
   worker.send({ type: 'set_trial_marker', sessionId: session, trialId: 'real', firstSampleIndex: '0' });
   return worker;
 }
+
+test('lab offline main FBCCA reproduces actual production worker windows, scores and votes', () => {
+ const directory=fs.mkdtempSync(path.join(os.tmpdir(),'bci-lab-parity-'));
+ try {
+  const worker=startRealWorker(false), raw=new Float32Array(2560*4);
+  for(let first=0;first<2560;first+=128){const encoded=frame(first,128,[15],first/128+1);raw.set(new Float32Array(encoded,60),first*4);worker.send({type:'eeg',buffer:encoded});}
+  fs.writeFileSync(path.join(directory,'trial.f32'),Buffer.from(raw.buffer));
+  fs.writeFileSync(path.join(directory,'input.json'),JSON.stringify({trials:[{trialId:'real',file:'trial.f32',fs:256,frequencies:[12,15]}]}));
+  execFileSync(process.execPath,['tools/stimulus_lab/fbcca.mjs',path.join(directory,'input.json'),path.join(directory,'output.json')],{windowsHide:true});
+  const replay=JSON.parse(fs.readFileSync(path.join(directory,'output.json'),'utf8')).real.online;
+  const actual=worker.messages.filter(m=>m.type==='decision'&&m.decision.windowEndSample<=1536).map(m=>m.decision);
+  assert.equal(replay.length,actual.length);
+  for(let i=0;i<replay.length;i++){
+   assert.equal(replay[i].endSeconds,actual[i].windowEndSample/256);
+   assert.equal(replay[i].candidate,actual[i].candidateIndex);
+   assert.equal(replay[i].accepted,!actual[i].rejected);
+   for(let k=0;k<2;k++)assert.ok(Math.abs(replay[i].rawScores[k]-actual[i].scores[k])<1e-7);
+  }
+ } finally {fs.rmSync(directory,{recursive:true,force:true});}
+});
 
 test('Worker selects P3/P4/Oz/Pz by real metadata even with extra O1/O2 and reordered mixed-case names', () => {
   const worker = loadWorker();

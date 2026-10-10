@@ -1,0 +1,24 @@
+.shell.shell--lab.stimulus-lab { --window-gutter: 22px; max-width: 1920px; margin: auto; padding: 0 22px 28px; color: #eee9dc; }
+.stimulus-lab .app-header { margin: 0 -22px 14px; }
+.lab-heading { font-size: 23px; }
+.lab-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px 16px; background: #193328; border: 1px solid #53634f; border-radius: 12px; margin-bottom: 10px; }
+.lab-controls label { display: flex; align-items: center; gap: 8px; }
+.lab-channel-state { display: flex; gap: 8px; font-size: 13px; }
+.lab-channel-state > span { border: 1px solid #75806d; border-radius: 6px; padding: 3px 6px; }
+.lab-channel-state > span[data-ready=true] { color: #d4e4cb; }
+.lab-controls button, .lab-review button { font-size: 17px; padding: 9px 16px; }
+.lab-controls select { max-width: 300px; padding: 7px 10px; font-size: 16px; border-radius: 9px; }
+.lab-status { display: flex; justify-content: space-between; align-items: center; gap: 16px; min-height: 58px; padding: 8px 18px; }
+.lab-status strong { font-size: 23px; }
+.lab-table { flex: 0 0 720px; height: 720px; overflow: hidden; border-radius: 18px; margin-bottom: 12px; }
+.stimulus-lab > .lab-controls, .stimulus-lab > .lab-status, .stimulus-lab > .lab-review { flex-shrink: 0; }
+.lab-table .stimulus-canvas { display: block; width: 100%; height: 100% !important; min-height: 0 !important; }
+.lab-error { padding: 10px 16px; background: #743136; border-radius: 9px; }
+.lab-review { padding: 18px; background: #f7f5f0; color: #5e624f; border-radius: 12px; margin: 12px 0; }
+.lab-review h2 { margin: 0 0 10px; font-size: 23px; }
+.lab-review p { margin: 8px 0 14px; }
+.lab-review .lab-controls { background: #eeece4; color: #5e624f; border-color: #cfcbbf; }
+.lab-review-list { display: grid; grid-template-columns: repeat(auto-fit,minmax(300px,1fr)); gap: 10px; margin: 15px 0; }
+.lab-review-list label { display: flex; gap: 8px; align-items: center; font-size: 15px; }
+.lab-review input[type=number] { width: 70px; margin-right: 16px; }
+@media (max-width: 1050px) { .lab-heading { font-size: 18px; } .lab-status strong { font-size: 19px; } }

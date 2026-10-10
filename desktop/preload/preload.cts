@@ -3,6 +3,11 @@ import { contextBridge, ipcRenderer } from "electron";
 type GatewayStatus = "starting" | "ready" | "faulted" | "stopping" | "stopped";
 interface GatewayConnection { url: string; token: string; protocolVersion: number; }
 interface BrainGameDesktopApi {
+  labList(): Promise<{ id: string; createdAt: string; completed: number }[]>;
+  labLoad(id: string): Promise<unknown>;
+  labSave(run: unknown): Promise<unknown>;
+  labAnalyze(id: string, final: boolean): Promise<unknown>;
+  labOpenReport(id: string, final: boolean): Promise<void>;
   getGatewayStatus(): Promise<GatewayStatus>;
   getGatewayConnection(): Promise<GatewayConnection | null>;
   restartGateway(): Promise<void>;
@@ -19,6 +24,11 @@ const IPC = {
 } as const;
 
 const api: BrainGameDesktopApi = {
+  labList: () => ipcRenderer.invoke("lab:list"),
+  labLoad: id => ipcRenderer.invoke("lab:load", id),
+  labSave: run => ipcRenderer.invoke("lab:save", run),
+  labAnalyze: (id, final) => ipcRenderer.invoke("lab:analyze", id, final),
+  labOpenReport: (id, final) => ipcRenderer.invoke("lab:open-report", id, final),
   getGatewayStatus: () => ipcRenderer.invoke(IPC.getStatus),
   getGatewayConnection: () => ipcRenderer.invoke(IPC.getConnection),
   restartGateway: () => ipcRenderer.invoke(IPC.restart),

@@ -4,10 +4,14 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { GatewaySidecar } from "./sidecar.js";
 import { IPC } from "./types.js";
+import { registerLabIpc } from "./lab.js";
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(currentDirectory, "../..");
 const packageSmoke = process.env.BRAIN_GAME_PACKAGE_SMOKE === "1";
+const labSmoke = process.env.BRAIN_GAME_LAB_UI_CHECK === "1";
+// A 1080p smoke run must not inherit the host's 200% desktop scale.
+if (labSmoke) app.commandLine.appendSwitch("force-device-scale-factor", "1");
 let mainWindow: BrowserWindow | null = null;
 let sidecar: GatewaySidecar | null = null;
 let quitting = false;
@@ -35,7 +39,7 @@ if (!hasLock) app.quit();
 
 function createDirectories() {
   const localRoot = path.join(app.getPath("userData"));
-  const sessions = packageSmoke && process.env.BRAIN_GAME_SMOKE_USER_DATA
+    const sessions = (packageSmoke || labSmoke) && process.env.BRAIN_GAME_SMOKE_USER_DATA
     ? path.join(localRoot, "test-sessions")
     : path.join(app.getPath("documents"), "BrainGame", "Sessions");
   const directories = {
@@ -68,9 +72,12 @@ function createWindow(): BrowserWindow {
       sandbox: true,
       contextIsolation: true,
       nodeIntegration: false,
+      backgroundThrottling: !labSmoke,
+      offscreen: labSmoke,
     },
   });
   window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+  if (labSmoke) window.webContents.setFrameRate(60);
   if (process.env.BRAIN_GAME_RENDERER_SMOKE_TEST === "1") {
     window.webContents.on("console-message", (_event, level, message, line, sourceId) => {
       console.error(`RENDERER_CONSOLE level=${level} ${message} (${sourceId}:${line})`);
@@ -82,7 +89,7 @@ function createWindow(): BrowserWindow {
   window.webContents.on("will-navigate", (event, targetUrl) => {
     if (targetUrl !== window.webContents.getURL()) event.preventDefault();
   });
-  window.on("ready-to-show", () => { if (!packageSmoke) window.show(); });
+  window.on("ready-to-show", () => { if (!packageSmoke && !labSmoke) { window.maximize(); window.show(); } });
   window.on("closed", () => {
     mainWindow = null;
   });
@@ -94,7 +101,15 @@ function createWindow(): BrowserWindow {
 
 function registerIpc(sessionsDirectory: string): void {
   ipcMain.handle(IPC.getStatus, () => sidecar?.getStatus() ?? "stopped");
-  ipcMain.handle(IPC.getConnection, () => sidecar?.getConnection() ?? null);
+  ipcMain.handle(IPC.getConnection, () => {
+    // Only the isolated hidden-window test may replace the local gateway.
+    if (labSmoke && !app.isPackaged && process.env.BRAIN_GAME_LAB_TEST_CONNECTION) {
+      const connection = JSON.parse(fs.readFileSync(process.env.BRAIN_GAME_LAB_TEST_CONNECTION,"utf8"));
+      if (!/^ws:\/\/127\.0\.0\.1:\d+$/.test(connection.url)) throw new Error("test gateway must be loopback");
+      return connection;
+    }
+    return sidecar?.getConnection() ?? null;
+  });
   ipcMain.handle(IPC.restart, async () => sidecar?.restart());
   ipcMain.handle(IPC.openSessionFolder, async (_event, sessionId?: string) => {
     const target = sessionId ? path.join(sessionsDirectory, sessionId) : sessionsDirectory;
@@ -240,7 +255,51 @@ app.whenReady().then(async () => {
       : undefined,
   });
   registerIpc(directories.sessions);
+  registerLabIpc(projectRoot, directories.sessions);
   mainWindow = createWindow();
+  if (labSmoke) {
+    // Hidden-window layout/storage check; never connects to acquisition hardware.
+    try {
+      if (mainWindow.webContents.isLoadingMainFrame()) await new Promise<void>(resolve => mainWindow!.webContents.once("did-finish-load", () => resolve()));
+      mainWindow.setContentSize(1920, 1080);
+      await new Promise(resolve => setTimeout(resolve, 600));
+      const result = await mainWindow.webContents.executeJavaScript(`(async () => {
+        const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+        const button = text => [...document.querySelectorAll('button')].find(b => b.textContent.trim() === text);
+        if (!button('新建完整实验') || document.querySelector('.intro-flip') || document.querySelector('.view-nav')) throw new Error('Dedicated lab entry failed');
+        button('新建完整实验').click(); await sleep(500);
+        const records = await window.brainGameDesktop.labList();
+        if (records.length !== 1) throw new Error('Run creation failed');
+        const run = await window.brainGameDesktop.labLoad(records[0].id);
+        if (run.items.length !== 225) throw new Error('Protocol item count failed');
+        let staleRejected = false;
+        await window.brainGameDesktop.labSave(run);
+        try { await window.brainGameDesktop.labSave(run); } catch { staleRejected = true; }
+        if (!staleRejected) throw new Error('Concurrent revision write was not rejected');
+        const controls = [...document.querySelectorAll('select')];
+        const set = async (select, value) => { const setter=Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set;setter.call(select,String(value));select.dispatchEvent(new Event('change',{bubbles:true}));await sleep(180); };
+        const checks=[];
+        for (const count of [2,4,6]) for (const form of ['solid','card','card-face']) {
+          await set(controls[1],count); await set(controls[2],form);
+          const c=document.querySelector('canvas'), r=c.getBoundingClientRect();
+          const lab=document.querySelector('.stimulus-lab');
+          if(lab.dataset.targetCount!==String(count) || lab.dataset.appearance!==form) throw new Error('Preview control did not change the actual stimulus');
+          checks.push({count,form,width:r.width,height:r.height,backingWidth:c.width,backingHeight:c.height});
+          if(r.width<900 || r.height!==720 || document.documentElement.scrollWidth>innerWidth+1) throw new Error('Lab layout failed '+JSON.stringify({count,form,width:r.width,height:r.height,scrollWidth:document.documentElement.scrollWidth,innerWidth}));
+        }
+        if (!button('开始下一批').disabled || !button('开始采集').disabled) throw new Error('EEG start gates failed');
+        return {success:true,checks,staleRejected,items:run.items.length,active:run.items.filter(i=>i.kind==='active').length,preload:!!window.brainGameDesktop};
+      })()`);
+      if (process.env.BRAIN_GAME_LAB_TEST_CONNECTION) {
+        const { runLabAcquisitionCheck } = await import("./labAcquisitionCheck.js");
+        await runLabAcquisitionCheck(mainWindow,app.getPath("userData"));
+      }
+      fs.writeFileSync(path.join(app.getPath("userData"), "lab-ui.png"), (await mainWindow.webContents.capturePage()).toPNG());
+      fs.writeFileSync(path.join(app.getPath("userData"), "lab-ui-check.json"), JSON.stringify({ ...result, metrics: app.getAppMetrics().map(({type,cpu,memory})=>({type,cpu,memory})) }, null, 2));
+      console.log("LAB_UI_CHECK=" + JSON.stringify(result));
+    } catch (cause) { fs.writeFileSync(path.join(app.getPath("userData"),"lab-ui-failure.png"),(await mainWindow.webContents.capturePage()).toPNG()); console.error("LAB_UI_CHECK_FAILED", cause); process.exitCode = 1; }
+    app.quit(); return;
+  }
   sidecar.on("status", (status) => mainWindow?.webContents.send(IPC.statusChanged, status));
   sidecar.on("stderr", (message) => console.error(`[device-gateway] ${message}`));
   if (process.env.BRAIN_GAME_SCREENSHOT === "1") {

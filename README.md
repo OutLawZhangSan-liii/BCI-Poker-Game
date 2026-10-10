@@ -2,6 +2,8 @@
 
 Electron 桌面版 SSVEP 脑机接口扑克牌游戏，包含游戏牌桌、教学模式、设备与实验。前端使用 React、TypeScript、Vite；Python 网关负责设备通信与本地会话录制。
 
+当前 `codex/stimulus-form-debug` 分支默认打开专用刺激实验工作台：三种形式、2/4/6 目标、216 次主动试次、可续测采集与 CCA/FBCCA/TRCA/eTRCA 离线比较。原游戏与教学模块保留但入口隐藏。完整协议、启动依赖与验收见 [tools/stimulus_lab/README.md](tools/stimulus_lab/README.md)。旧版安装包尚未包含本分支的分析运行环境。
+
 ## Windows 安装版
 
 安装程序为 `release/0.1.4/Shengong-Shenyou-Setup-0.1.4-x64.exe`。安装版已内置 Electron 和 Python 网关，无需另装 Node.js 或 Python。安装后从桌面“神工神游”启动；从 Windows“已安装的应用”或安装目录中的卸载程序卸载。卸载保留用户会话数据。

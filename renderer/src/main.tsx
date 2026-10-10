@@ -36,6 +36,7 @@ import type { WorkerInput, WorkerOutput, BciDecision, CalibrationProgress, RealT
 import { fbccaDecisionPolicy, FBCCA_POLICY_VERSION } from "./bci/signal/decisionPolicy";
 import { FBCCA_FILTER_WARMUP_SAMPLES } from "./bci/signal/fbcca";
 import "./styles.css";
+import { StimulusLab } from "./lab/StimulusLab";
 
 interface DeviceProperties { acquisition_status: number; sample_rate_hz: number; samples_per_packet: number; channel_count: number; lead_names: string[]; }
 interface LinkStats { chunks: number; samplesPerChannel: number; sequenceDiscontinuities: number; reportedGaps: number; chunksPerSecond: number; }
@@ -1283,4 +1284,5 @@ function Startup() {
   </>;
 }
 
-createRoot(document.getElementById("root")!).render(<StrictMode><Startup /></StrictMode>);
+// This branch defaults to the dedicated lab; the original application remains available for regression checks.
+createRoot(document.getElementById("root")!).render(<StrictMode>{new URLSearchParams(location.search).get("app") === "original" ? <Startup /> : <StimulusLab />}</StrictMode>);
