@@ -25,7 +25,7 @@ export interface DiagnosticStimulusContext {
   analysisWindowsSeconds?: typeof COMPARISON_ANALYSIS_WINDOWS;
   stimulusFootprint: "seat" | "card";
   outerFlicker: boolean;
-  brightnessMethod: "static-card-overlay" | "black-overlay-linear-rgb-v1" | "uniform-rgb-v1";
+  brightnessMethod: "static-card-overlay" | "black-overlay-linear-rgb-v2" | "uniform-rgb-v1";
 }
 
 export function StimulusTimingDiagnostics({ disabled, comparisonEnabled = false, getEegFreshness, onRunningChange, onFirstFrame, onComplete }: {
@@ -194,7 +194,7 @@ export function StimulusTimingDiagnostics({ disabled, comparisonEnabled = false,
         segment: run ? run.conditions[run.index].segment : undefined,
         analysisWindowsSeconds: run ? COMPARISON_ANALYSIS_WINDOWS : undefined,
         stimulusFootprint: appearance === "card" ? "seat" : "card", outerFlicker: appearance === "card",
-        brightnessMethod: appearance === "card-face" ? "black-overlay-linear-rgb-v1" : appearance === "solid" ? "uniform-rgb-v1" : "static-card-overlay",
+        brightnessMethod: appearance === "card-face" ? "black-overlay-linear-rgb-v2" : appearance === "solid" ? "uniform-rgb-v1" : "static-card-overlay",
       })).catch(() => { if (revision === generation.current) { stop("marker_write_failed"); setNotice("试次标记保存失败，测试已停止，请检查网关连接"); } }); }}
       onFrameStats={complete} onTimingDisruption={() => {}} onTimingFault={() => { setNotice("严重或持续丢帧，测试已停止"); stop("display_timing_fault"); }}
       onResizeWhileActive={() => { setNotice("显示尺寸变化，测试已停止"); stop("display_resize"); }} /></div>

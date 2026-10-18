@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { SIMPLE_STIMULUS_GEOMETRY, type StimulusFrameStats, type StimulusTarget } from "../bci/stimulus/types";
 import { computeResponsiveStimulusGeometry, GAME_DECK_TOP_RATIO, hasSignificantStimulusResize, type ResponsiveStimulusGeometrySnapshot } from "../bci/stimulus/geometry";
-import { modulationLevel } from "../bci/stimulus/modulation";
+import { modulationLevel, cardFaceBrightness } from "../bci/stimulus/modulation";
 import { StimulusTimingQuality } from "../bci/stimulus/timingQuality";
 import { stimulusRenderScale } from "../bci/stimulus/renderBudget";
 import { stimulusLuminanceAt } from "../bci/stimulus/phase";
@@ -195,12 +195,12 @@ export function StimulusTable({ active, dealing = false, targets, refreshRateHz 
       painter.fillStyle = color(37, 43, 39); painter.beginPath(); painter.arc(x, y, compactCards ? 2.5 : 3, 0, Math.PI * 2); painter.fill();
       painter.restore();
     };
-    const shadeCardFace = (painter: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, level: number) => {
-      // Cached card pixels are multiplied by the same RGB level used by the
-      // solid control. Clip to the face so neither surround nor shadow flashes.
+    const shadeCardFace = (painter: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, brightness: number) => {
+      // Face-specific contrast: original pixels at the bright peak, 5% at the
+      // dark trough. Clip so neither surround nor shadow flashes.
       painter.save(); painter.shadowColor = "transparent"; painter.shadowBlur = 0;
       roundedRect(painter, x, y, width, height, 10); painter.clip();
-      painter.globalAlpha = 1 - Math.min(255, Math.max(0, level)) / 255;
+      painter.globalAlpha = 1 - brightness;
       painter.fillStyle = "#000"; painter.fillRect(x, y, width, height); painter.restore();
     };
     const drawCard = (x: number, y: number, label: string, luminance: number | null, cardWidth: number, cardHeight: number, ring: number, scale = 1, rotation = 0, frequencyLabel?: string, shadowBlur = 7, shadowOffsetY = 3, ringYOverride?: number, depthOverride?: number, painter = context, paintRing = true) => {
@@ -233,7 +233,7 @@ export function StimulusTable({ active, dealing = false, targets, refreshRateHz 
       painter.strokeStyle = "rgba(35,31,25,.28)"; painter.lineWidth = 1;
       roundedRect(painter, x - cardWidth / 2, y - cardHeight / 2, cardWidth, cardHeight, 10); painter.stroke();
       if (luminance !== null) {
-        if (propsRef.current.targetAppearance === "card-face" && paintRing) shadeCardFace(painter, x - cardWidth / 2, y - cardHeight / 2, cardWidth, cardHeight, modulationLevel(luminance, depthOverride ?? propsRef.current.modulationDepth));
+        if (propsRef.current.targetAppearance === "card-face" && paintRing) shadeCardFace(painter, x - cardWidth / 2, y - cardHeight / 2, cardWidth, cardHeight, cardFaceBrightness(luminance, depthOverride ?? propsRef.current.modulationDepth));
         drawFixationPoint(painter, 0, 0, paintRing ? luminance : null);
       }
       }
@@ -351,7 +351,7 @@ export function StimulusTable({ active, dealing = false, targets, refreshRateHz 
           if (current.targetAppearance !== "solid") {
             context.drawImage(sprite.image, sprite.x, sprite.y, sprite.width, sprite.height);
             if (current.targetAppearance === "card-face") {
-              shadeCardFace(context, resolved.card.x, resolved.card.y, resolved.card.width, resolved.card.height, level);
+              shadeCardFace(context, resolved.card.x, resolved.card.y, resolved.card.width, resolved.card.height, cardFaceBrightness(luminance, current.modulationDepth));
               drawFixationPoint(context, resolved.centerX, resolved.centerY, luminance);
             }
             else if (fixationMode === "synchronous") drawFixationPoint(context, resolved.centerX, resolved.centerY, luminance);

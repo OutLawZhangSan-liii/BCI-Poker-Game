@@ -1103,7 +1103,7 @@ function App() {
           comparisonSegment: context.segment, analysisWindowsSeconds: context.analysisWindowsSeconds,
           stimulusFootprint: context.stimulusFootprint, outerFlicker: context.outerFlicker, brightnessMethod: context.brightnessMethod,
           modulatedRegionGeometry: context.geometry?.targets.map(target => ({ ...(context.stimulusFootprint === "card" ? target.card : target.ring), cornerRadius: context.stimulusFootprint === "card" ? 10 : 16 })),
-          rgbLevelMapping: "42+178*luminance-v1",
+          rgbLevelMapping: context.appearance === "card-face" ? "clamp(0.525+(luminance-0.5)/0.45*0.475*depth,0,1)*originalRGB" : "42+178*luminance-v1",
           excludedFromModulationGeometry: context.appearance === "card" ? context.geometry?.targets.map(target => ({ ...target.card, cornerRadius: 10 })) : [],
           rgbChannelStyle: context.appearance === "card" ? "legacy-blue-plus5" : "achromatic",
           condition: context.condition, plannedDurationMs: context.plannedDurationMs, responsiveStimulusGeometry: context.geometry,
