@@ -1,8 +1,9 @@
+import { WARM_PAPER } from "../theme/presentation";
 export interface PlotBounds { left: number; right: number; top: number; bottom: number; yTickWidth?: number; yLabelWidth?: number }
 
 // Frequency axis presentation: 5 Hz labels/grid, 1 Hz tick marks.
 // This does not change FFT bin spacing or interpolate the measured spectrum.
-export function drawFrequencyTicks(context: CanvasRenderingContext2D, plot: PlotBounds, maxHz: number, axis: "x" | "y", gridColor = "#e0e0e0") {
+export function drawFrequencyTicks(context: CanvasRenderingContext2D, plot: PlotBounds, maxHz: number, axis: "x" | "y", gridColor: string = WARM_PAPER.border) {
   if (!Number.isFinite(maxHz) || maxHz <= 0) return;
   context.save();
   context.setLineDash([]);
@@ -54,5 +55,5 @@ export function drawPlotAxes(context: CanvasRenderingContext2D, plot: PlotBounds
 }
 
 export function plotBackground(context: CanvasRenderingContext2D) {
-  return context.canvas.closest(".shell--teaching-observe, .principle-demo-analysis") ? "#f7f7f5" : "#ffffff";
+  return WARM_PAPER.panel;
 }

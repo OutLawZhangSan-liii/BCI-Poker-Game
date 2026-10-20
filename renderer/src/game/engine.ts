@@ -32,7 +32,7 @@ export function generateGameRound(mode: GameMode, random: () => number = Math.ra
 export function scoreChoice(mode: GameMode, previousTotal: number, previousStreak: number, choiceIndex: number | null,
   correctIndex: number, decisionTimeMs: number): GameScore {
   const correct = choiceIndex === correctIndex;
-  if (!correct) return { total: previousTotal, streak: choiceIndex === null ? previousStreak : 0, gained: 0, correct: false };
+  if (!correct) return { total: previousTotal, streak: 0, gained: 0, correct: false };
   const speedRatio = Math.max(0, Math.min(1, (3500 - decisionTimeMs) / 2000));
   const rule = scoreRules[mode]; const gained = rule.base + Math.round(rule.speedBonus * speedRatio);
   return { total: previousTotal + gained, streak: previousStreak + 1, gained, correct: true };

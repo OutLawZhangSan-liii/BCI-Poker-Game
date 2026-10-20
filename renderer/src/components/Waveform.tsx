@@ -7,7 +7,7 @@ export function Waveform({ samples }: { samples: Float32Array | null }) {
     const scale = window.devicePixelRatio || 1, width = canvas.clientWidth, height = canvas.clientHeight;
     canvas.width = Math.floor(width * scale); canvas.height = Math.floor(height * scale);
     const context = canvas.getContext("2d"); if (!context) return;
-    context.scale(scale, scale); context.clearRect(0, 0, width, height); context.strokeStyle = "#34d399"; context.lineWidth = 1.5;
+    context.scale(scale, scale); context.clearRect(0, 0, width, height); context.strokeStyle = "#416784"; context.lineWidth = 1.5;
     let minimum = Infinity, maximum = -Infinity;
     for (const value of samples) { minimum = Math.min(minimum, value); maximum = Math.max(maximum, value); }
     const range = maximum - minimum || 1; context.beginPath();

@@ -111,7 +111,7 @@ export function drawSpectrum(canvas: HTMLCanvasElement, observedSpectrum: PowerS
   if (showIdeal && cleanSpectrum) drawSpectrumLine(context, cleanSpectrum, plot, visibleMaxHz, yLimit, "#d95319", true);
   visibleTargetFrequencies(targetFrequencies).forEach(frequency => {
     const x = plot.left + frequency / visibleMaxHz * (plot.right - plot.left);
-    context.strokeStyle = "#7a2e31"; context.lineWidth = 1; context.setLineDash([3, 3]);
+    context.strokeStyle = "#C83E2D"; context.lineWidth = 1; context.setLineDash([3, 3]);
     context.beginPath(); context.moveTo(x, plot.top); context.lineTo(x, plot.bottom); context.stroke();
     context.setLineDash([]);
   });

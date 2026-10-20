@@ -18,7 +18,7 @@ body .shell:is(.shell--game, .shell--teaching, .shell--lab) {
   align-items: center;
   gap: 16px;
   background: var(--color-app);
-  border-bottom: 1px solid rgba(185, 173, 143, .22);
+  border-bottom: 1px solid transparent;
   -webkit-app-region: drag;
   app-region: drag;
   user-select: none;
@@ -36,7 +36,7 @@ body .shell:is(.shell--game, .shell--teaching, .shell--lab) {
   height: 42px;
   object-fit: contain;
   border-radius: 9px;
-  mix-blend-mode: screen;
+  color: var(--color-ink);
   pointer-events: none;
 }
 .app-header--window .app-header__brand { min-width: 0; }

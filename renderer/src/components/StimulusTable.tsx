@@ -1,3 +1,4 @@
+import { PRESENTATION_VERSION, WARM_PAPER, type PresentationVersion } from "../theme/presentation";
 import { useEffect, useRef } from "react";
 import { SIMPLE_STIMULUS_GEOMETRY, type StimulusFrameStats, type StimulusTarget } from "../bci/stimulus/types";
 import { computeResponsiveStimulusGeometry, GAME_DECK_TOP_RATIO, hasSignificantStimulusResize, type ResponsiveStimulusGeometrySnapshot } from "../bci/stimulus/geometry";
@@ -9,6 +10,7 @@ import type { FixationMode } from "../bci/stimulus/comparison";
 
 interface Props {
   active: boolean;
+  presentationVersion?: PresentationVersion;
   stimulusStartTimestamp?: number;
   stimulusEndTimestamp?: number;
   debugTiming?: boolean;
@@ -48,11 +50,15 @@ const roundedRect = (context: CanvasRenderingContext2D, x: number, y: number, wi
   context.beginPath(); context.roundRect(x, y, width, height, radius);
 };
 
-export function StimulusTable({ active, dealing = false, targets, refreshRateHz = 60, luminanceBaseline = 0.5,
+export function StimulusTable({ presentationVersion = PRESENTATION_VERSION, active, dealing = false, targets, refreshRateHz = 60, luminanceBaseline = 0.5,
   modulationAmplitude = 0.45, modulationDepth = 1, activeTargetIndex = null, onFirstFrame, onFrameStats, onTimingStats, onDealComplete, referenceLabel = "9♠", referenceX = 0.5,
   referenceTag,
   referenceY = SIMPLE_STIMULUS_GEOMETRY.referenceY, showReference = true, compactCards = targets.length > 2,
   showFrequencyLabels = false, surface = "standard", targetAppearance = "card", stimulusFootprint = "seat", targetSize = "standard", showSolidFixationPoint = false, fixationMode = "fixed", stimulusStartTimestamp, stimulusEndTimestamp, debugTiming = false, selectedTargetIndex = null, onTargetClick, onGeometryChange, onResizeWhileActive, onTimingDisruption, onTimingFault }: Props) {
+  const themeRef = useRef(presentationVersion);
+  if (!active) themeRef.current = presentationVersion;
+  const effectivePresentation = themeRef.current;
+  const legacy = effectivePresentation === "legacy-green-v1";
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const scheduleFrameRef = useRef<(() => void) | null>(null);
   const stopFrameRef = useRef<(() => void) | null>(null);
@@ -124,7 +130,7 @@ export function StimulusTable({ active, dealing = false, targets, refreshRateHz 
       return image;
     };
     const cardBackImage = () => {
-      const filename = "card-back.svg";
+      const filename = legacy ? "card-back.svg" : "card-back-warm.svg";
       let image = imageCacheRef.current.get(filename);
       if (!image) {
         image = new Image();
@@ -176,8 +182,8 @@ export function StimulusTable({ active, dealing = false, targets, refreshRateHz 
           back.addEventListener("load", () => resolve(), { once: true });
           back.addEventListener("error", () => resolve(), { once: true });
         }));
-        const felt = feltTextureImage();
-        if (!felt.complete) waits.push(new Promise<void>(resolve => {
+        const felt = legacy ? feltTextureImage() : null;
+        if (felt && !felt.complete) waits.push(new Promise<void>(resolve => {
           felt.addEventListener("load", () => resolve(), { once: true });
           felt.addEventListener("error", () => resolve(), { once: true });
         }));
@@ -240,7 +246,7 @@ export function StimulusTable({ active, dealing = false, targets, refreshRateHz 
       if (propsRef.current.targetAppearance === "solid" && propsRef.current.showSolidFixationPoint && luminance !== null) drawFixationPoint(painter, 0, 0, luminance);
       painter.restore();
       if (showFrequencyLabels && frequencyLabel) {
-        painter.save(); painter.fillStyle = "rgba(244,239,224,.92)"; painter.font = "600 14px system-ui, sans-serif";
+        painter.save(); painter.fillStyle = legacy ? "rgba(244,239,224,.92)" : WARM_PAPER.muted; painter.font = "600 14px system-ui, sans-serif";
         painter.textAlign = "center"; painter.textBaseline = "top"; painter.fillText(frequencyLabel, centerX, centerY + cardHeight / 2 + ringY + 9); painter.restore();
       }
     };
@@ -364,9 +370,9 @@ export function StimulusTable({ active, dealing = false, targets, refreshRateHz 
         if (cachedDesk) {
           context.drawImage(cachedDesk, 0, 0, width, height);
         } else {
-        context.fillStyle = "#285f48"; context.fillRect(0, 0, width, height);
-        const felt = feltTextureImage();
-        if (felt.complete && felt.naturalWidth > 0) {
+        context.fillStyle = legacy ? "#285f48" : WARM_PAPER.background; context.fillRect(0, 0, width, height);
+        const felt = legacy ? feltTextureImage() : null;
+        if (felt && felt.complete && felt.naturalWidth > 0) {
           // Fixed-size seamless fibers keep their physical scale on resize.
           // This is rasterized into cachedBackground, outside the active-frame path.
           const pattern = context.createPattern(felt, "repeat");
@@ -376,9 +382,11 @@ export function StimulusTable({ active, dealing = false, targets, refreshRateHz 
             context.fillStyle = pattern; context.fillRect(0, 0, width, height); context.restore();
           }
         }
+        if (legacy) {
         const glow = context.createRadialGradient(width * .5, height * .42, 20, width * .5, height * .42, Math.max(width, height) * .72);
         glow.addColorStop(0, "rgba(78,132,99,.24)"); glow.addColorStop(.62, "rgba(27,70,53,.08)"); glow.addColorStop(1, "rgba(9,30,23,.34)");
         context.fillStyle = glow; context.fillRect(0, 0, width, height);
+        }
         drawDeck(width, height);
         // Felt compositing, gradients and deck shadows are static throughout
         // dealing. Rasterize once rather than rebuilding them on every frame.
@@ -389,9 +397,9 @@ export function StimulusTable({ active, dealing = false, targets, refreshRateHz 
         }
         }
       } else {
-        context.fillStyle = "#174b38"; context.fillRect(0, 0, width, height);
+        context.fillStyle = legacy ? "#174b38" : WARM_PAPER.background; context.fillRect(0, 0, width, height);
         context.strokeStyle = "rgba(235,228,207,.035)"; context.lineWidth = 1;
-        for (let line = 12; line < height; line += 18) { context.beginPath(); context.moveTo(0, line); context.lineTo(width, line + 5); context.stroke(); }
+        if (legacy) for (let line = 12; line < height; line += 18) { context.beginPath(); context.moveTo(0, line); context.lineTo(width, line + 5); context.stroke(); }
       }
       if (isDealing) {
         if (currentSurface !== "game") { context.fillStyle = "#8f2830"; roundedRect(context, width - 92, height - 75, 68, 92, 7); context.fill();
@@ -412,7 +420,7 @@ export function StimulusTable({ active, dealing = false, targets, refreshRateHz 
         if (currentShowReference && geometry?.reference) {
           drawCard(geometry.reference.centerX, geometry.reference.centerY, currentReferenceLabel, null, geometry.reference.card.width, geometry.reference.card.height, 0);
           if (currentReferenceTag) {
-            context.save(); context.fillStyle = "rgba(244,239,224,.9)"; context.font = "600 12px system-ui, sans-serif";
+            context.save(); context.fillStyle = legacy ? "rgba(244,239,224,.9)" : WARM_PAPER.muted; context.font = "600 12px system-ui, sans-serif";
             context.textAlign = "center"; context.textBaseline = "bottom";
             context.fillText(currentReferenceTag, geometry.reference.centerX, geometry.reference.centerY - geometry.cardHeight / 2 - 8); context.restore();
           }
@@ -455,7 +463,7 @@ export function StimulusTable({ active, dealing = false, targets, refreshRateHz 
       if (!isActive && current.selectedTargetIndex !== null && current.selectedTargetIndex !== undefined) {
         const selected = geometry?.targets[current.selectedTargetIndex];
         if (selected) {
-          context.save(); context.strokeStyle = "#d3bd7e"; context.lineWidth = 3;
+          context.save(); context.strokeStyle = legacy ? "#d3bd7e" : WARM_PAPER.accent; context.lineWidth = 3;
           roundedRect(context, selected.ring.x, selected.ring.y, selected.ring.width, selected.ring.height, 16); context.stroke(); context.restore();
         }
       }
@@ -556,13 +564,13 @@ export function StimulusTable({ active, dealing = false, targets, refreshRateHz 
       cachedCards.forEach(sprite => { sprite.image.width = sprite.image.height = 0; });
       cachedBackground = null; cachedDesk = null; cachedCards = [];
     };
-  }, [targets, referenceLabel, referenceTag, referenceX, referenceY, showReference, compactCards, showFrequencyLabels, surface, targetAppearance, stimulusFootprint, targetSize, showSolidFixationPoint, fixationMode]);
+  }, [targets, referenceLabel, referenceTag, referenceX, referenceY, showReference, compactCards, showFrequencyLabels, surface, targetAppearance, stimulusFootprint, targetSize, showSolidFixationPoint, fixationMode, effectivePresentation]);
 
   useEffect(() => { scheduleFrameRef.current?.(); }, [active, dealing, activeTargetIndex, refreshRateHz, luminanceBaseline, modulationAmplitude, modulationDepth, selectedTargetIndex, stimulusStartTimestamp, stimulusEndTimestamp]);
   useEffect(() => { if (!active) stopFrameRef.current?.(); }, [active]);
 
   const simpleGeometry = compactCards === false || targets.length <= 2;
-  return <canvas ref={canvasRef} className={`stimulus-canvas ${simpleGeometry ? "simple-geometry-v2" : ""} ${onTargetClick ? "clickable" : ""}`} aria-label={targetAppearance === "solid" ? "SSVEP 纯色刺激块" : "SSVEP 扑克牌刺激区"}
+  return <canvas data-presentation={effectivePresentation} ref={canvasRef} className={`stimulus-canvas ${simpleGeometry ? "simple-geometry-v2" : ""} ${onTargetClick ? "clickable" : ""}`} aria-label={targetAppearance === "solid" ? "SSVEP 纯色刺激块" : "SSVEP 扑克牌刺激区"}
     onClick={(event) => {
       if (!onTargetClick) return;
       const bounds = event.currentTarget.getBoundingClientRect(), x = event.clientX - bounds.left, y = event.clientY - bounds.top;

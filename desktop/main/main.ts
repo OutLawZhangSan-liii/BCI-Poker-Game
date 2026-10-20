@@ -4,10 +4,14 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { GatewaySidecar } from "./sidecar.js";
 import { IPC } from "./types.js";
+import { ChallengeStore } from "./challengeStore.js";
+import { runChallengeSmoke } from "./challengeSmoke.js";
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(currentDirectory, "../..");
 const packageSmoke = process.env.BRAIN_GAME_PACKAGE_SMOKE === "1";
+const challengeSmoke = process.env.BRAIN_GAME_CHALLENGE_SMOKE === "1" && !app.isPackaged;
+if (challengeSmoke && !process.env.BRAIN_GAME_SMOKE_USER_DATA) throw new Error("挑战模拟验收必须指定隔离数据目录");
 let mainWindow: BrowserWindow | null = null;
 let sidecar: GatewaySidecar | null = null;
 let quitting = false;
@@ -16,7 +20,7 @@ let quitting = false;
 // example, a missing driver DLL).  Opt into Chromium's software compositor
 // before app readiness so the complete production page can still render and
 // be captured.  Normal launches keep the platform default.
-if (process.env.BRAIN_GAME_SCREENSHOT === "1" || process.env.BRAIN_GAME_RENDERER_SMOKE_TEST === "1") {
+if (process.env.BRAIN_GAME_SCREENSHOT === "1" || process.env.BRAIN_GAME_RENDERER_SMOKE_TEST === "1" || challengeSmoke) {
   app.commandLine.appendSwitch("disable-gpu");
   app.commandLine.appendSwitch("disable-gpu-compositing");
   app.commandLine.appendSwitch("in-process-gpu");
@@ -58,16 +62,18 @@ function createWindow(): BrowserWindow {
     show: false,
     title: "神工 · 神游",
     titleBarStyle: "hidden",
-    titleBarOverlay: { color: "#111a15", symbolColor: "#eee9dc", height: 64 },
+    titleBarOverlay: { color: "#F7F5F1", symbolColor: "#202126", height: 64 },
     icon: app.isPackaged
       ? path.join(process.resourcesPath, "app-icon.ico")
       : path.join(projectRoot, "packaging", "icon.ico"),
-    backgroundColor: "#111a15",
+    backgroundColor: "#F7F5F1",
     webPreferences: {
       preload: path.join(currentDirectory, "../preload/preload.cjs"),
       sandbox: true,
       contextIsolation: true,
       nodeIntegration: false,
+      backgroundThrottling: !challengeSmoke,
+      additionalArguments: challengeSmoke ? ["--challenge-smoke"] : [],
     },
   });
   window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
@@ -82,7 +88,7 @@ function createWindow(): BrowserWindow {
   window.webContents.on("will-navigate", (event, targetUrl) => {
     if (targetUrl !== window.webContents.getURL()) event.preventDefault();
   });
-  window.on("ready-to-show", () => { if (!packageSmoke) window.show(); });
+  window.on("ready-to-show", () => { if (!packageSmoke && !challengeSmoke) window.show(); });
   window.on("closed", () => {
     mainWindow = null;
   });
@@ -93,6 +99,18 @@ function createWindow(): BrowserWindow {
 }
 
 function registerIpc(sessionsDirectory: string): void {
+  const challengeDirectory = process.env.BRAIN_GAME_SMOKE_USER_DATA
+    ? path.join(app.getPath("userData"), "test-challenges")
+    : path.join(app.getPath("documents"), "BrainGame", "Challenges");
+  const challenges = new ChallengeStore(challengeDirectory);
+  const requireMainWindow = (event: Electron.IpcMainInvokeEvent) => {
+    if (!mainWindow || event.sender !== mainWindow.webContents || event.senderFrame !== mainWindow.webContents.mainFrame)
+      throw new Error("无法访问挑战记录");
+  };
+  ipcMain.handle(IPC.challengeCreate, (event, record: unknown) => { requireMainWindow(event); return challenges.create(record); });
+  ipcMain.handle(IPC.challengeGet, (event, id: string) => { requireMainWindow(event); return challenges.get(id); });
+  ipcMain.handle(IPC.challengeList, (event) => { requireMainWindow(event); return challenges.list(); });
+  ipcMain.handle(IPC.challengeSave, (event, record: unknown) => { requireMainWindow(event); return challenges.save(record); });
   ipcMain.handle(IPC.getStatus, () => sidecar?.getStatus() ?? "stopped");
   ipcMain.handle(IPC.getConnection, () => sidecar?.getConnection() ?? null);
   ipcMain.handle(IPC.restart, async () => sidecar?.restart());
@@ -243,6 +261,12 @@ app.whenReady().then(async () => {
   mainWindow = createWindow();
   sidecar.on("status", (status) => mainWindow?.webContents.send(IPC.statusChanged, status));
   sidecar.on("stderr", (message) => console.error(`[device-gateway] ${message}`));
+  if (challengeSmoke) {
+    try { await runChallengeSmoke(mainWindow, app.getPath("userData")); }
+    catch (error) { console.error("CHALLENGE_SMOKE_FAILED", error); process.exitCode = 1; }
+    finally { app.quit(); }
+    return;
+  }
   if (process.env.BRAIN_GAME_SCREENSHOT === "1") {
     try {
       await runScreenshotCheck(mainWindow);

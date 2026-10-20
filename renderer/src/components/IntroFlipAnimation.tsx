@@ -5,8 +5,7 @@ import "./IntroFlipAnimation.css";
 
 export const FORCE_INTRO = false;
 const SESSION_KEY = "shenyoo_intro_played";
-const FRAMES = ["01_standby.png"]
-  .map(name => `${import.meta.env.BASE_URL}assets/intro/${name}`);
+const FRAMES = [`${import.meta.env.BASE_URL}cards/card-back-warm.svg`];
 
 export function shouldPlayIntro() {
   if (import.meta.env.DEV && FORCE_INTRO) return true;
@@ -75,7 +74,7 @@ export function IntroFlipAnimation({ onReveal, onComplete }: { onReveal: () => v
     aria-label="神工 · 神游开场动画" onClick={() => leave()}>
     <div className="intro-flip__artwork" aria-hidden="true">
       <div className="intro-flip__scene">
-        <img className="intro-flip__background" src={FRAMES[0]} alt="" draggable={false} />
+
         <div className="intro-flip__title-position">
           <IntroNeuron />
           <span className="intro-flip__title"><BrandWordmark /></span>

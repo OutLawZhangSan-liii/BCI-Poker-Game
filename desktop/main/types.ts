@@ -17,4 +17,8 @@ export const IPC = {
   restart: "gateway:restart",
   openSessionFolder: "session:open-folder",
   statusChanged: "gateway:status-changed",
+  challengeCreate: "challenge:create",
+  challengeGet: "challenge:get",
+  challengeList: "challenge:list",
+  challengeSave: "challenge:save",
 } as const;

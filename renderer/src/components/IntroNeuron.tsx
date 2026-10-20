@@ -8,11 +8,12 @@ export function IntroNeuron() {
   const maskId = `intro-neuron-${useId().replace(/:/g, "")}`;
   return <svg className="intro-flip__neuron" viewBox="0 0 1280 1280" aria-hidden="true">
     <defs>
+      <mask id={`${maskId}-art`} style={{ maskType: "luminance" }}><image href={`${import.meta.env.BASE_URL}assets/branding/neuron-icon.png`} width="1280" height="1280" /></mask>
       <mask id={maskId} maskUnits="userSpaceOnUse" x="0" y="0" width="1280" height="1280" style={{ maskType: "luminance" }}>
         <path className="intro-flip__neuron-trace" d={TRACE} pathLength="1" fill="none" stroke="white" strokeWidth="120" strokeLinecap="round" strokeLinejoin="round" />
         <rect className="intro-flip__neuron-finish" width="1280" height="1280" fill="white" />
       </mask>
     </defs>
-    <image href={`${import.meta.env.BASE_URL}assets/branding/neuron-icon.png`} width="1280" height="1280" mask={`url(#${maskId})`} />
+    <g mask={`url(#${maskId})`}><rect width="1280" height="1280" fill="currentColor" mask={`url(#${maskId}-art)`} /></g>
   </svg>;
 }
