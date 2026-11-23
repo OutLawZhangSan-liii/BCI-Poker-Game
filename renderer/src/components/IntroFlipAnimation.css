@@ -8,7 +8,7 @@
 .intro-flip__neuron { flex: none; width: clamp(70px, min(8vw, 14vh), 120px); height: auto; overflow: visible; color: var(--color-ink); }
 .intro-flip__neuron-trace { stroke-dasharray: 1; stroke-dashoffset: 1; }
 .intro-flip__neuron-finish { opacity: 0; }
-.intro-flip__card-position { position: absolute; left: 50%; top: 48.7%; width: min(22.8vw, 40.5vh); aspect-ratio: 381 / 588; transform: translate(-50%, -50%); perspective: 1200px; }
+.intro-flip__card-position { position: absolute; left: 50%; top: 55%; width: min(22.8vw, 40.5vh); aspect-ratio: 381 / 588; transform: translate(-50%, -50%); perspective: 1200px; }
 .intro-flip__card { position: absolute; inset: 0; transform-style: preserve-3d; will-change: transform; }
 .intro-flip__face { position: absolute; inset: 0; backface-visibility: hidden; border-radius: 6%; background-size: 100% 100%; background-position: center; background-repeat: no-repeat; background-color: var(--color-paper); box-shadow: 0 4px 14px rgba(0, 0, 0, .18); }
 .intro-flip__face--back { transform: rotateY(180deg); }

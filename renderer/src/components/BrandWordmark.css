@@ -2,10 +2,10 @@
   position: relative;
   display: inline-block;
   flex: none;
-  width: calc(var(--brand-wordmark-height, 38px) * var(--brand-wordmark-ratio, 3.47));
+  width: calc(var(--brand-wordmark-height, 38px) * var(--brand-wordmark-ratio, 4.12701));
   height: var(--brand-wordmark-height, 38px);
   background: currentColor;
-  mask-image: url("/assets/branding/shoujin-wordmark.svg");
+  mask-image: url("/assets/branding/mashanzheng-wordmark.svg");
   mask-position: center;
   mask-repeat: no-repeat;
   mask-size: contain;

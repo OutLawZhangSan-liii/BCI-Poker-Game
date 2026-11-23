@@ -13,3 +13,12 @@ Reference: https://github.com/google/fonts/tree/main/ofl/notoserifsc
 To regenerate, install `fonttools` and `brotli` into a development Python
 environment, then run `packaging/build-brand-font.py <NotoSerifSC-font.ttf>`.
 The generated font is committed as a local asset; app startup never downloads it.
+
+## Current Ma Shan Zheng wordmark
+
+The header and intro use `../mashanzheng-wordmark.svg`, outlined directly from
+`artwork/web-pips-v2/MaShanZheng-Regular.ttf` with the approved specimen's spacing.
+Regenerate with `python packaging/build-mashan-wordmark.py` (fonttools required).
+The original font is licensed under SIL OFL 1.1; see `MaShanZheng-OFL.txt`.
+No font download or runtime text rasterization is required. The earlier Ming
+subset and `../shoujin-wordmark.svg` remain available as historical assets.

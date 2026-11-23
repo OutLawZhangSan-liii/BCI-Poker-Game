@@ -1,3 +1,5 @@
+import { ContinuousButterworthBank } from "./butterworth";
+import { gameClassifierIdentity } from "./gameClassifier";
 import { ANALYSIS_LEADS, analysisChannelIndices, DEFAULT_DISPLAY_LEAD } from "./leads";
 import { ReusableSpectrum } from "../../teaching/reusableSpectrum";
 import { ObservationFilter, observationFilterInfo } from "../../teaching/observationFilter";
@@ -28,7 +30,7 @@ let lastGapEnd = -1;
 let nextProgressSample = 0;
 let cleanWindowStart = 0;
 let expectedFirstSample: bigint | null = null;
-let classifierFilter: ContinuousFbccaFilterBank | null = null;
+let classifierFilter: ContinuousFbccaFilterBank | ContinuousButterworthBank | null = null;
 let classifierBuffers: SignalRingBuffer[] = [];
 let classifierOrigin = 0;
 let classifierResetPending = false;
@@ -141,14 +143,14 @@ function processAvailable(): void {
     const channels = invalidWindow ? [] : preprocessChannels(rawChannels);
     const ranking = invalidWindow ? { candidateIndex: 0, confidence: 0, margin: 0, rawScores: config.targetFrequenciesHz.map(() => 0) } : etracaModel
       ? scoreEtrca(channels, etracaModel)
-      : rankScores(scoreFilteredBanks(classifierBuffers.map(bank => bank.windowEnding(end - classifierOrigin, windowSamples, [0, 1, 2, 3])), config.sampleRateHz, config.targetFrequenciesHz, config.harmonics, correlations));
+      : rankScores(scoreFilteredBanks(classifierBuffers.map(bank => bank.windowEnding(end - classifierOrigin, windowSamples, [0, 1, 2, 3])), config.sampleRateHz, config.targetFrequenciesHz, config.harmonics, correlations, config.classifierProfile !== "butterworth-trial-v1"));
     const qualityReject = invalidWindow || flatChannel || transportGap || ranking.confidence < config.confidenceThreshold || ranking.margin < config.marginThreshold;
     votes.push(qualityReject ? -1 : ranking.candidateIndex); if (votes.length > config.requiredVotes) votes.shift();
     const stable = votes.length >= config.requiredVotes && votes.every((vote) => vote === ranking.candidateIndex);
     const rejected = qualityReject || !stable;
     const decision: BciDecision = { sessionId, trialId, candidateIndex: rejected ? null : ranking.candidateIndex,
       confidence: ranking.confidence, windowStartSample: start, windowEndSample: end,
-      classifierName: etracaModel ? "etraca-prototype" : "fbcca-cca", classifierVersion: etracaModel ? "0.1.0" : "0.3.0", rejected,
+      classifierName: etracaModel ? "etraca-prototype" : gameClassifierIdentity(config.classifierProfile ?? "fir-baseline-v1").name, classifierVersion: etracaModel ? "0.1.0" : gameClassifierIdentity(config.classifierProfile ?? "fir-baseline-v1").version, rejected,
       rankedCandidateIndex: ranking.candidateIndex, margin: ranking.margin, scores: ranking.rawScores,
       effectiveWindowSamples: windowSamples, filterWarmupSamples: FBCCA_FILTER_WARMUP_SAMPLES,
       confidenceThreshold: config.confidenceThreshold, marginThreshold: config.marginThreshold,
@@ -195,7 +197,7 @@ self.onmessage = (event: MessageEvent<WorkerInput>) => {
       }
       selectedChannels(message.config.leadNames);
       config = message.config; buffer = new SignalRingBuffer(config.channelCount, config.sampleRateHz * 20);
-      classifierFilter = new ContinuousFbccaFilterBank(config.sampleRateHz, ANALYSIS_LEADS.length);
+      classifierFilter = config.classifierProfile === "butterworth-trial-v1" ? new ContinuousButterworthBank(config.sampleRateHz, ANALYSIS_LEADS.length) : new ContinuousFbccaFilterBank(config.sampleRateHz, ANALYSIS_LEADS.length);
       classifierBuffers = [0, 1].map(() => new SignalRingBuffer(ANALYSIS_LEADS.length, config!.sampleRateHz * 20));
       const displayFilter = config.publishAnalysis && observationFilterInfo(config.sampleRateHz);
       psdBuffer = displayFilter ? new SignalRingBuffer(4, config.sampleRateHz * 20) : null;

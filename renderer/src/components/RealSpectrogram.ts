@@ -1,4 +1,4 @@
-import { drawFrequencyTicks, drawPlotAxes, plotBackground } from "./AnalysisPlotStyle";
+import { plotFont, drawFrequencyTicks, drawPlotAxes, plotBackground, principlePlotBounds, plotReferenceFrequencies, PLOT_REFERENCE_COLOR } from "./AnalysisPlotStyle";
 import type { PowerSpectrum } from "../teaching/simulatedAnalysis";
 import type { RealEegSnapshot } from "../teaching/realEegAnalysis";
 
@@ -78,7 +78,7 @@ export class RealSpectrogram {
     }
     this.count = Math.min(COLUMNS, this.count + advance); this.latestBin = bin; this.revision++;
   }
-  draw(canvas: HTMLCanvasElement) {
+  draw(canvas: HTMLCanvasElement, emptyMessage = "正在积累完整时频窗口", targetFrequencies: readonly number[] = []) {
     const width = canvas.clientWidth, height = canvas.clientHeight;
     if (!width || !height) return;
     const ratio = devicePixelRatio || 1;
@@ -87,7 +87,8 @@ export class RealSpectrogram {
     if (canvas.height !== pixelHeight) canvas.height = pixelHeight;
     const context = canvas.getContext("2d")!;
     context.setTransform(ratio, 0, 0, ratio, 0, 0); context.fillStyle = plotBackground(context); context.fillRect(0, 0, width, height);
-    const plot = { left: 66, right: Math.max(67, width - 100), top: 28, bottom: Math.max(29, height - 48) };
+    const principle = Boolean(canvas.closest(".principle-demo-analysis"));
+    const plot = principle ? principlePlotBounds(width,height) : { left:66, right:Math.max(67,width-100), top:28, bottom:Math.max(29,height-48) };
     context.imageSmoothingEnabled = false;
     if (this.count) {
       const start = (this.writeIndex - this.count + COLUMNS) % COLUMNS;
@@ -95,11 +96,20 @@ export class RealSpectrogram {
       context.drawImage(this.bitmap, start, 0, first, ROWS, plot.left, plot.top, first * scale, plot.bottom - plot.top);
       if (first < this.count) context.drawImage(this.bitmap, 0, 0, this.count - first, ROWS, plot.left + first * scale, plot.top, (this.count - first) * scale, plot.bottom - plot.top);
     }
-    else { context.fillStyle = "#697565"; context.font = "12px Arial, Microsoft YaHei, sans-serif"; context.textAlign = "center"; context.fillText("正在积累完整时频窗口", (plot.left + plot.right) / 2, (plot.top + plot.bottom) / 2); }
-    context.font = "12px Arial, Microsoft YaHei, sans-serif"; context.textBaseline = "middle";
+    else { context.fillStyle = "#697565"; context.font = plotFont(context, 12); context.textAlign = "center"; context.fillText(emptyMessage, (plot.left + plot.right) / 2, (plot.top + plot.bottom) / 2); }
+    context.font = plotFont(context, 12); context.textBaseline = "middle";
     const endTime = this.originTime + Math.max(0, this.latestBin) * this.hop / this.sampleRate;
     const startTime = this.count ? endTime - (this.count - 1) * this.hop / this.sampleRate : 0;
-    drawFrequencyTicks(context, plot, this.maxHz, "y", "#ffffff33");
+    drawFrequencyTicks(context, plot, this.maxHz, "y", "#ffffff33", canvas.closest(".principle-demo-analysis") ? 10 : 5);
+    if (principle) {
+      context.save(); context.beginPath(); context.rect(plot.left,plot.top,plot.right-plot.left,plot.bottom-plot.top); context.clip();
+      context.strokeStyle=PLOT_REFERENCE_COLOR; context.lineWidth=1; context.setLineDash([3,3]);
+      for (const frequency of plotReferenceFrequencies(targetFrequencies).filter(f=>f<=this.maxHz)) {
+        const y=plot.bottom-frequency/this.maxHz*(plot.bottom-plot.top);
+        context.beginPath();context.moveTo(plot.left,y);context.lineTo(plot.right,y);context.stroke();
+      }
+      context.restore();
+    }
     for (let index = 0; index <= 2; index++) {
       const x = plot.left + index / 2 * (plot.right - plot.left);
       context.fillStyle = "#353535"; context.textAlign = index === 0 ? "left" : index === 2 ? "right" : "center";
@@ -107,7 +117,7 @@ export class RealSpectrogram {
     }
     const barX = plot.right + 14, barHeight = plot.bottom - plot.top;
     context.drawImage(this.colorbar, barX, plot.top, 12, barHeight);
-    context.fillStyle = "#353535"; context.textAlign = "left"; context.font = "11px Arial, Microsoft YaHei, sans-serif";
+    context.fillStyle = "#353535"; context.textAlign = "left"; context.font = plotFont(context, 11);
     context.fillText("PSD (dB)", plot.right + 4, 12);
     for (let index = 0; index <= 4; index++) context.fillText(String(MAX_DB - index / 4 * (MAX_DB - MIN_DB)), barX + 18, plot.top + index / 4 * barHeight);
     drawPlotAxes(context, plot, width, height, "时间 (s)", "频率 (Hz)");

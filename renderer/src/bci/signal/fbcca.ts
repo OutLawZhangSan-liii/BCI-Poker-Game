@@ -105,10 +105,10 @@ function covariance(left: Float64Array[], right: Float64Array[]): Matrix {
   return output;
 }
 
-function regularize(matrix: Matrix): Matrix {
+function regularize(matrix: Matrix, relativeRidge = 1e-6): Matrix {
   const output = matrix.map((row) => row.slice());
   const averageVariance = output.reduce((sum, row, index) => sum + Math.max(0, row[index]), 0) / output.length;
-  const ridge = Math.max(1e-12, averageVariance * 1e-6);
+  const ridge = Math.max(1e-12, averageVariance * relativeRidge);
   for (let index = 0; index < output.length; index += 1) output[index][index] += ridge;
   return output;
 }
@@ -149,10 +149,25 @@ function largestSymmetricEigenvalue(matrix: Matrix): number {
   return Math.max(0, vector.reduce((sum, value, index) => sum + value * multiplied[index], 0));
 }
 
+/** Converged symmetric Jacobi solver for the trial profile. The legacy power
+ * iteration remains untouched for exact FIR rollback. */
+export function jacobiLargestEigenvalue(matrix: Matrix): number {
+  const a = matrix.map(row => row.slice()), n = a.length;
+  for (let step = 0; step < 100; step++) {
+    let p = 0, q = 0, maximum = 0;
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) if (Math.abs(a[i][j]) > maximum) { maximum = Math.abs(a[i][j]); p = i; q = j; }
+    if (maximum < 1e-13) break;
+    const tau = (a[q][q] - a[p][p]) / (2 * a[p][q]);
+    const t = (tau >= 0 ? 1 : -1) / (Math.abs(tau) + Math.sqrt(1 + tau * tau)), c = 1 / Math.sqrt(1 + t * t), s = t * c;
+    const off = a[p][q]; a[p][p] -= t * off; a[q][q] += t * off; a[p][q] = a[q][p] = 0;
+    for (let k = 0; k < n; k++) if (k !== p && k !== q) { const x = a[k][p], y = a[k][q]; a[k][p] = a[p][k] = c*x-s*y; a[k][q] = a[q][k] = s*x+c*y; }
+  }
+  return Math.max(0, ...a.map((row,i)=>row[i]));
+}
 /** Largest canonical correlation between multichannel EEG and sine/cosine references. */
-function canonicalCorrelation(eeg: Float64Array[], reference: Float64Array[]): number {
-  const covarianceX = regularize(covariance(eeg, eeg));
-  const covarianceY = regularize(covariance(reference, reference));
+function canonicalCorrelation(eeg: Float64Array[], reference: Float64Array[], precise = false): number {
+  const covarianceX = regularize(covariance(eeg, eeg), precise ? 1e-8 : 1e-6);
+  const covarianceY = regularize(covariance(reference, reference), precise ? 1e-8 : 1e-6);
   const cross = covariance(eeg, reference);
   const lowerX = cholesky(covarianceX), lowerY = cholesky(covarianceY);
   const firstWhitening = cross.map(() => Array(reference.length).fill(0));
@@ -163,7 +178,7 @@ function canonicalCorrelation(eeg: Float64Array[], reference: Float64Array[]): n
   const whitened = firstWhitening.map((row) => solveLower(lowerY, row));
   const gram = whitened.map((row) => whitened.map((_, second) =>
     row.reduce((sum, value, column) => sum + value * whitened[second][column], 0)));
-  return Math.min(1, Math.sqrt(largestSymmetricEigenvalue(gram)));
+  return Math.min(1, Math.sqrt(precise ? jacobiLargestEigenvalue(gram) : largestSymmetricEigenvalue(gram)));
 }
 
 function makeReferences(sampleCount: number, sampleRateHz: number, frequencyHz: number, harmonics: number): Float64Array[] {
@@ -179,10 +194,10 @@ function makeReferences(sampleCount: number, sampleRateHz: number, frequencyHz: 
   return output;
 }
 
-function rawFbccaScore(filteredBanks: Float64Array[][], sampleRateHz: number, frequencyHz: number, harmonics: number, onCorrelation?: (value: number) => void): number {
+function rawFbccaScore(filteredBanks: Float64Array[][], sampleRateHz: number, frequencyHz: number, harmonics: number, onCorrelation?: (value: number) => void, precise = false): number {
   let score = 0;
   filteredBanks.forEach((bank, bankIndex) => {
-    const correlation = canonicalCorrelation(bank, makeReferences(bank[0].length, sampleRateHz, frequencyHz, harmonics));
+    const correlation = canonicalCorrelation(bank, makeReferences(bank[0].length, sampleRateHz, frequencyHz, harmonics), precise);
     if (bankIndex === 0) onCorrelation?.(correlation);
     score += correlation * correlation / Math.pow(bankIndex + 1, 1.25);
   });
@@ -219,12 +234,13 @@ export function scoreFilterBank(
 
 /** CCA receives the full requested window, already filtered by the acquisition stream. */
 export function scoreFilteredBanks(
-  banks: Array<ArrayLike<number>[]>, sampleRateHz: number, frequenciesHz: number[], requestedHarmonics: number, correlations?: number[],
+  banks: Array<ArrayLike<number>[]>, sampleRateHz: number, frequenciesHz: number[], requestedHarmonics: number, correlations?: number[], normalize = true,
 ): FrequencyScore[] {
   const harmonics = Math.max(1, Math.min(requestedHarmonics, Math.floor(FILTER_HIGH_HZ / (Math.max(...frequenciesHz) + 1))));
   const filteredBanks = banks.slice(0, harmonics >= 2 ? 2 : 1).map(bank => bank.map(channel => Float64Array.from(channel)));
   return frequenciesHz.map((frequencyHz, index) => {
-    const targetScore = rawFbccaScore(filteredBanks, sampleRateHz, frequencyHz, harmonics, correlations ? value => { correlations[index] = value; } : undefined);
+    const targetScore = rawFbccaScore(filteredBanks, sampleRateHz, frequencyHz, harmonics, correlations ? value => { correlations[index] = value; } : undefined, !normalize);
+    if (!normalize) return { frequencyHz, score: targetScore };
     const noiseScores = comparisonFrequencies(frequencyHz, frequenciesHz)
       .map((comparison) => rawFbccaScore(filteredBanks, sampleRateHz, comparison, harmonics));
     const localBaseline = noiseScores.reduce((sum, value) => sum + value, 0) / noiseScores.length;

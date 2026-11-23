@@ -1,11 +1,11 @@
+import { InlineAnalysisDetails } from "./InlineAnalysisDetails";
 import { DEFAULT_DISPLAY_LEAD } from "../bci/signal/leads";
 import { ReusableSpectrum } from "../teaching/reusableSpectrum";
 import { RealSpectrogram } from "./RealSpectrogram";
 import { AnalysisSummary } from "./AnalysisSummary";
 import { createPortal } from "react-dom";
-import { drawFrequencyTicks, drawPlotAxes, plotBackground } from "./AnalysisPlotStyle";
+import { plotFont, drawFrequencyTicks, drawPlotAxes, plotBackground } from "./AnalysisPlotStyle";
 import { EEG_SAMPLE_UNIT, EEG_PSD_UNIT } from "../bci/units";
-import { Tooltip } from "./StatusBadge";
 import { SignalViewer, useAnalysisSection, notifyTraining } from "./TrainingLayout";
 import { useEffect, useMemo, useRef, useState, type ReactNode, type MutableRefObject } from "react";
 import type { EegChunk } from "../bci/protocol";
@@ -27,7 +27,8 @@ interface RealEegAnalysisPanelProps {
   acquiring: boolean;
   properties: DeviceProperties | null;
   chunkTapRef: MutableRefObject<RealEegTap | null>;
-  onGoToLab: () => void;
+  devicePanelId: string;
+  deviceControlsLocked: boolean;
   testMode?: boolean;
   compact?: boolean;
 }
@@ -54,7 +55,7 @@ function setupCanvas(canvas: HTMLCanvasElement) {
 function drawGrid(context: CanvasRenderingContext2D, width: number, height: number, yMin: number, yMax: number, yTicks: number[], xTicks: Array<{ value: number; label: string }>, xMax: number) {
   const plot = { left: CHART_MARGIN.left, right: Math.max(CHART_MARGIN.left + 1, width - CHART_MARGIN.right), top: CHART_MARGIN.top, bottom: Math.max(CHART_MARGIN.top + 1, height - CHART_MARGIN.bottom) };
   context.fillStyle = plotBackground(context); context.fillRect(0, 0, width, height);
-  context.font = "12px Arial, Microsoft YaHei, sans-serif"; context.textBaseline = "middle";
+  context.font = plotFont(context, 12); context.textBaseline = "middle";
   context.strokeStyle = "#e0e0e0"; context.lineWidth = 1; context.fillStyle = "#353535";
   yTicks.forEach((value) => {
     const y = plot.bottom - ((value - yMin) / Math.max(1e-12, yMax - yMin)) * (plot.bottom - plot.top);
@@ -204,7 +205,7 @@ function Chart({ snapshot, spectrum, samples, spectralSnapshot = snapshot, singl
       <details className="chart-explanation"><summary>图表说明</summary><small>{processingDescription(snapshot)} · 单位 {EEG_SAMPLE_UNIT}、未重参考 · 自动范围 ±{(waveformMaximum > 0 ? Math.max(1e-12, waveformMaximum * 1.1) : 1).toPrecision(3)} {EEG_SAMPLE_UNIT}</small></details>
     </article>;
   const spectrumChart = <article className="sim-analysis-chart-card real-chart-spectrum"><div className="sim-analysis-chart-heading"><h4>功率谱密度（PSD）</h4></div>
-      <div className="real-eeg-chart-slot"><canvas ref={spectrumRef} className="sim-analysis-chart" aria-label="实时网关 EEG 功率谱密度" />{!spectrum && <div className="real-eeg-empty-chart">正在积累完整分析窗口</div>}</div>
+      <div className="real-eeg-chart-slot"><canvas ref={spectrumRef} className="sim-analysis-chart" aria-label="实时网关 EEG 功率谱密度" /></div>
       <details className="chart-explanation"><summary>图表说明</summary><small>{processingDescription(snapshot)}；与时域使用同一窗口，去均值、周期 Hann 窗 · 自动范围 0–{spectrum && snapshot.sampleRateHz ? Math.max(1e-12, spectrumVisibleMaximum(spectrum, snapshot.sampleRateHz) * 1.1).toPrecision(3) : "—"}</small></details>
     </article>;
   return singleChart ? <SignalViewer waveform={waveform} spectrum={spectrumChart} channelControl={channelControl} /> : <div className="sim-analysis-charts real-eeg-analysis-charts real-eeg-three-charts">
@@ -214,11 +215,7 @@ function Chart({ snapshot, spectrum, samples, spectralSnapshot = snapshot, singl
     </article>{waveform}{spectrumChart}</div>;
 }
 
-const statusText: Record<RealEegSnapshot["state"], string> = {
-  waiting: "等待有效 EEG 数据", accumulating: "正在积累连续窗口", running: "运行中", paused: "已暂停，继续后重新积累", interrupted: "数据中断，等待恢复", invalid: "元数据或样本异常，已停止分析",
-};
-
-export function RealEegAnalysisPanel({ active = true, visible = active, activeSessionId, acquiring, properties, chunkTapRef, onGoToLab, compact = false, actionsTarget }: RealEegAnalysisPanelProps) {
+export function RealEegAnalysisPanel({ active = true, visible = active, activeSessionId, acquiring, properties, chunkTapRef, devicePanelId, deviceControlsLocked, compact = false, actionsTarget }: RealEegAnalysisPanelProps) {
   const sheetSection = useAnalysisSection();
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [observing, setObserving] = useState(true);
@@ -346,22 +343,28 @@ export function RealEegAnalysisPanel({ active = true, visible = active, activeSe
   const observationControls = <div className="real-eeg-controls">{!compact && channelControl}
       {filterControls}
       <button type="button" className="secondary" onClick={() => { pauseOrResume(); notifyTraining(observing ? "观察已暂停" : "观察已恢复"); }} disabled={noSession}>{observing ? "暂停观察" : "继续观察"}</button>
-      {noSession && <button type="button" onClick={onGoToLab}>前往设备与实验</button>}
+      {noSession && <button type="button" className="paper-primary" popoverTarget={devicePanelId} disabled={deviceControlsLocked}>连接与采集</button>}
     </div>;
   return <section className="real-eeg-analysis" aria-label="实时网关 EEG 观察" hidden={!visible}>
     {actionsTarget ? visible && createPortal(observationControls, actionsTarget) : observationControls}
     {compact && noSession && <div className="signal-viewer-toolbar">{channelControl}</div>}
     {metadataError && <p className="sim-analysis-hint is-warning" role="alert">{metadataError}；已停止实时图表分析。</p>}
     {noPreferredChannel && !metadataError && <p className="sim-analysis-hint" role="status" title={`设备元数据未提供 ${DEFAULT_DISPLAY_LEAD}，可从实际通道列表中选择其他通道。`}>未提供 {DEFAULT_DISPLAY_LEAD} · 可选其他通道 ⓘ</p>}
-    {noSession && !metadataError && <p className="sim-analysis-hint" role="status" title="请先在设备与实验中连接网关并开始采集；当前不会生成替代波形。">未开始采集 ⓘ</p>}
-    {compact ? <Tooltip text={`窗口 ${snapshot.windowSamples || "—"} 点 · 频率栅格 ${snapshot.sampleRateHz && snapshot.fftLength ? (snapshot.sampleRateHz / snapshot.fftLength).toFixed(3) : "—"} Hz · ${statusText[snapshot.state]}`}><div className="analysis-meta-bar">{snapshot.sampleRateHz ?? properties?.sample_rate_hz ?? "—"} Hz · {REAL_EEG_WINDOW_SECONDS} s · FFT {snapshot.fftLength || "—"} · {snapshot.state === "running" ? "运行中" : snapshot.state === "paused" ? "已暂停" : snapshot.state === "invalid" ? "异常" : snapshot.state === "interrupted" ? "数据中断" : snapshot.state === "accumulating" ? "积累窗口" : "等待数据"}</div></Tooltip> : <details className="analysis-collapsible"><summary>分析参数</summary><div className="sim-analysis-config"><span>Fs {snapshot.sampleRateHz ?? properties?.sample_rate_hz ?? "—"} Hz</span><span>窗口 {snapshot.windowSamples || "—"} 点（约 {REAL_EEG_WINDOW_SECONDS} s）</span><span>FFT {snapshot.fftLength || "—"} 点</span><span>频率栅格 {snapshot.sampleRateHz && snapshot.fftLength ? (snapshot.sampleRateHz / snapshot.fftLength).toFixed(3) : "—"} Hz</span><span>状态：{statusText[snapshot.state]}</span></div></details>}
-    {!compact && <div className="real-eeg-analysis-status"><div className="analysis-meta-bar">{snapshot.sampleRateHz ?? properties?.sample_rate_hz ?? "—"} Hz · {REAL_EEG_WINDOW_SECONDS} s · FFT {snapshot.fftLength || "—"} · {statusText[snapshot.state]} · {processingDescription(snapshot)}</div><AnalysisSummary samples={visibleSamples} spectrum={spectrum} /></div>}
+    {!noSession && !metadataError && (snapshot.state === "interrupted" || snapshot.state === "invalid") &&
+      <p className="sim-analysis-hint is-warning" role="status">{snapshot.state === "interrupted" ? "数据中断，等待恢复" : "元数据或样本异常，已停止分析"}</p>}
+    {!compact && !noSession && <div className="real-eeg-analysis-status"><AnalysisSummary samples={visibleSamples} spectrum={spectrum} /></div>}
     {!noSession && !metadataError && <Chart streamKey={`${activeSessionId}|${selectedIndex}|${snapshot.sampleRateHz}|${snapshot.processing}|${snapshot.notchEnabled}`} snapshot={displaySnapshot} spectrum={spectrum} samples={visibleSamples} singleChart={compact} spectralSnapshot={spectralData.snapshot} channelControl={channelControl} />}
-    <details className="analysis-runtime-details" open={compact ? sheetSection === "parameters" || undefined : undefined}><summary>参数与运行说明</summary>
-    <div className="sim-analysis-footer"><span>窗口样本：{Math.min(snapshot.sampleCount, snapshot.windowSamples || snapshot.sampleCount)}/{snapshot.windowSamples || "—"}</span><span>样本序号：{snapshot.windowStartSample === null ? "—" : `${snapshot.windowStartSample.toString()}–${(snapshot.windowEndSampleExclusive! - 1n).toString()}`}</span><span>有效数据块：{snapshot.sampleCount ? "已接收" : "—"}</span>{peak === null || !spectrum ? <span>峰值：窗口未满</span> : <span>计算峰值：{spectrum.frequenciesHz[peak].toFixed(3)} Hz · {spectrum.powerDensity[peak].toPrecision(5)} {EEG_PSD_UNIT}</span>}</div>
-    {!noSession && !metadataError && <p className={`sim-analysis-hint ${snapshot.notice ? "is-warning" : ""}`} role="status">{snapshot.notice ?? statusText[snapshot.state]}</p>}
-    {!noSession && !metadataError && snapshot.historyNotice && snapshot.historyNotice !== snapshot.notice && <p className="sim-analysis-hint is-warning" role="note">历史告警：{snapshot.historyNotice}</p>}
-    <p className="sim-analysis-preset-note">当前观察：{processingDescription(snapshot)}。三张图使用同一通道、同一处理窗口；PSD 去均值并加周期 Hann 窗，时频图复用 PSD。滤波为连续因果滤波，开始或恢复时可能有短暂过渡；未重参考、幅值单位为 {EEG_SAMPLE_UNIT}，PSD 单位为 {EEG_PSD_UNIT}。观察设置不影响原始数据保存或游戏识别。暂停时保留当前画面，继续后重新积累。</p>
-    </details>
+    <InlineAnalysisDetails defaultOpen={compact && sheetSection === "parameters"} hint="观察设置不影响原始记录或游戏识别；暂停后保留画面，继续时重新积累数据。">
+      <span>采样率 <strong>{snapshot.sampleRateHz ?? properties?.sample_rate_hz ?? "—"} Hz</strong></span>
+      <span>窗口 <strong>{REAL_EEG_WINDOW_SECONDS} s</strong></span><span>FFT <strong>{snapshot.fftLength || "—"} 点</strong></span>
+      <span>间隔 <strong>{snapshot.sampleRateHz && snapshot.fftLength ? (snapshot.sampleRateHz / snapshot.fftLength).toFixed(3) : "—"} Hz</strong></span>
+      <span>样本 <strong>{Math.min(snapshot.sampleCount,snapshot.windowSamples||snapshot.sampleCount)}/{snapshot.windowSamples||"—"}</strong></span>
+      <span>序号 <strong>{snapshot.windowStartSample===null?"—":`${snapshot.windowStartSample}–${snapshot.windowEndSampleExclusive!-1n}`}</strong></span>
+      <span>数据块 <strong>{snapshot.sampleCount?"已接收":"—"}</strong></span>
+      <span>峰值 <strong>{peak===null||!spectrum?"窗口未满":`${spectrum.frequenciesHz[peak].toFixed(3)} Hz · ${spectrum.powerDensity[peak].toPrecision(5)} ${EEG_PSD_UNIT}`}</strong></span>
+      <span>{processingDescription(snapshot)}</span>
+      {!noSession&&!metadataError&&snapshot.notice&&<span className="is-warning" role="status">{snapshot.notice}</span>}
+      {!noSession&&!metadataError&&snapshot.historyNotice&&snapshot.historyNotice!==snapshot.notice&&<span className="is-warning" role="note">历史告警：{snapshot.historyNotice}</span>}
+    </InlineAnalysisDetails>
   </section>;
 }

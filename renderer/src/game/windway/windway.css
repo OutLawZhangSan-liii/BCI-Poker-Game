@@ -1,0 +1,69 @@
+.windway { position:relative; flex:1; min-height:0; display:flex; flex-direction:column; color:#17356b; }
+.windway.windway--focus { position:fixed; inset:0; z-index:30; background:#fafbfe; }
+.windway--focus .windway-tools { inset:72px clamp(12px,2vw,28px) auto; }
+.windway-tools {
+  position: absolute; z-index: 2; inset: 0 4px auto;
+  display: grid; grid-template-columns: minmax(0,1fr) auto minmax(0,1fr);
+  align-items: center; gap: 8px 14px; pointer-events: none;
+}
+.windway-tools .game-settings-fold { width:max-content; transform:none; pointer-events:auto; }
+html .windway-tools .game-settings-fold .game-settings-fold__trigger { grid-template-columns:3em max-content 16px; }
+.windway-status {
+  grid-area: 1 / 2; margin: 0; text-align: center; color: var(--color-text-secondary);
+  font-size: clamp(15px, 1.1vw, 25px); line-height: 1.4;
+}
+.windway-buttons {
+  grid-area: 1 / 3; justify-self: end; display: flex; align-items: center;
+  gap: 8px; pointer-events: auto; white-space: nowrap;
+}
+.windway-rules-trigger { display: inline-flex; align-items: center; gap: 7px; }
+.windway-rules {
+  margin: auto; width: min(32rem, calc(100% - 32px)); box-sizing: border-box;
+  max-height: calc(100dvh - 64px); overflow: auto; padding: clamp(20px, 3vw, 36px);
+  border: none; border-radius: 18px; background: var(--color-paper);
+  color: var(--color-ink); box-shadow: var(--shadow-panel);
+}
+.windway-rules::backdrop { background: rgba(23,53,107,.18); }
+.windway-rules h2 { margin: 0; font-size: clamp(22px, 2vw, 30px); }
+.windway-rules .windway-rules-note { margin-top: 1em; }
+@media (max-width: 840px) {
+  .windway-tools { grid-template-columns: minmax(0, 1fr) auto; }
+  .windway-status { grid-area: 2 / 1 / 3 / -1; }
+  .windway-buttons { grid-area: 1 / 2; }
+}
+@media (min-width: 841px) and (max-width: 1280px) {
+  .windway-tools:has(.game-settings-fold__group.is-open) .windway-status { grid-area: 2 / 1 / 3 / -1; }
+}
+.windway-space { position: relative; flex: 1; min-height: 0; container-type: size; display: grid; place-items: center; background: #fafbfe; }
+.windway-board { position: relative; isolation: isolate; width: min(100cqw,177.7778cqh); aspect-ratio: 16/9;
+  --target-x:25%; --target-y:calc(var(--flight-center,50%) + 26%);
+  background: radial-gradient(ellipse 17% 26% at var(--target-x) var(--target-y),#fafbfe 48%,transparent 100%),
+    radial-gradient(ellipse 17% 26% at calc(100% - var(--target-x)) var(--target-y),#fafbfe 48%,transparent 100%),
+    linear-gradient(180deg,#fafbfe,transparent 23%,transparent 73%,#fafbfe),
+    linear-gradient(#fafbfe38,#fafbfe38),url("./art/clouds.jpg") center / cover; }
+.windway-board canvas { position:absolute; left:0; top:calc(var(--flight-center,50%) - 50%); width:100%; height:100%; pointer-events:none;
+  /* Keep the wings opaque across the wider corridor and moving scenery above the fixation targets. */
+  mask-image:linear-gradient(to right,transparent,black 8%,black 92%,transparent),
+    linear-gradient(to bottom,black 62%,transparent 65%); mask-composite:intersect; }
+.windway-target { position:absolute; box-sizing:border-box; margin:0; padding:0;
+  left:var(--target-x); top:var(--target-y); width:11.25%; height:auto; aspect-ratio:1; min-height:0; min-width:0; transform:translate(-50%,-50%);
+  background-color:rgb(131 131 131); background-image:none; border:0; border-radius:0; box-shadow:none; outline:0; transition:none; touch-action:none; }
+.windway-target-1 { left:calc(100% - var(--target-x)); }
+.windway-target span { position:absolute; left:50%; top:50%; width:clamp(12px,10%,18px); aspect-ratio:1; transform:translate(-50%,-50%); pointer-events:none; }
+.windway-target span::before,.windway-target span::after { content:""; display:block; position:absolute;
+  background:#151515; }
+.windway-target span::before { left:0; width:100%; top:50%; height:1.5px; transform:translateY(-50%); }
+.windway-target span::after { top:0; height:100%; left:50%; width:1.5px; transform:translateX(-50%); }
+.shell--game .windway > .game-start-action { position:absolute; inset:auto 0 0; }
+.windway-summary {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  box-sizing: border-box; width: min(30rem, 78%); padding: clamp(14px, 2.2vw, 30px);
+  background: #fafbfefa; color: #17356b; box-shadow: 0 3px 20px #20376017; border-radius: 10px;
+}
+.windway-summary h2 { margin: 0; font: 700 clamp(22px, 2vw, 32px) var(--font-title, serif); }
+.windway-summary dl { display: grid; grid-template-columns: 1fr 1fr; margin: 1em 0; }
+.windway-summary dl > div { display: block; min-width: 0; padding: 0; border: 0; }
+.windway-summary dl > div + div { padding-left: 1.2em; border-left: 1px solid #c5d1e1; }
+.windway-summary dt { font-weight: 600; }
+.windway-summary dd { margin: .18em 0; font-size: clamp(22px, 2vw, 32px); font-variant-numeric: tabular-nums; }
+.windway-summary .windway-summary-note { font-size: clamp(13px, 1vw, 17px); line-height: 1.45; color: #4d6181; }

@@ -11,11 +11,13 @@ main 在原有 Electron/React 结构中增加实名三关挑战、四类本机�
 - [共享规则与类型](../../desktop/main/challengeModel.ts)：记录结构、验证、指标、排名、恢复与不可改写的历史校验。为避免复制规则，由渲染端和主进程共同使用；模块没有 Electron、文件系统和设备依赖。
 - [本地存储](../../desktop/main/challengeStore.ts)：UUID 限定文件名、写入队列、版本检查、幂等重试、临时文件写入并同步后原子替换。JSON 文件是原始成绩依据，排名按需计算。
 - [渲染端会话](../../renderer/src/game/challengeSession.ts)：在失败时保留待保存快照、阻止后续推进、重试后恢复；[主入口](../../renderer/src/main.tsx)复用既有牌桌与真实 EEG 生命周期，在刺激前保存手牌和 pending 尝试，刺激结束后保存终态。
-- [界面](../../renderer/src/components/ChallengeHub.tsx)：牌桌控制区“开始本局”左侧的挑战入口，原生小弹窗先输入身份、再看简短规则；排行榜和继续挑战入口在身份弹窗底部，使用米白配色，从辅助页面返回保留身份输入。结算由现有 HUD 承载。姓名进顶部 HUD，学号只在成绩界面显示尾四位。
+- [界面](../../renderer/src/components/ChallengeHub.tsx)：牌桌上方右侧的挑战入口，原生小弹窗先输入身份、再看简短规则；排行榜和继续挑战入口在身份弹窗底部，使用暖白配色，从辅助页面返回保留身份输入。底部单独提供自由游戏的“开始游戏”。结算由现有 HUD 承载。姓名进顶部 HUD，学号只在成绩界面显示尾四位。
 
 preload 公开 `createChallenge`、`getChallenge`、`listChallenges`、`saveChallenge`；主进程仅接受当前主窗口主框架请求，不能由调用方指定文件路径。正式目录为用户文档 `BrainGame/Challenges/`，与 EEG Sessions 分开并通过 sessionId/trialId 关联。旧 EEG 会话不迁移成实名成绩。
 
 挑战每轮终态最多一个有效尝试，异常／进程退出留下的 pending 尝试恢复时标 invalid，保留原因。关间30秒休息截止时间持久化；继续下一关前再次检查设备和配置。完成30轮且保存确认后才上榜，禁止修改已完成成绩。保存报错后须点击重试，当前窗口保留未保存快照。
+
+暖白改版后，新挑战记录 `warm-paper-v1`；旧挑战在识别、规则及其他刺激参数相同时可以续玩，沿用旧版绿色背景与原配置指纹。新旧成绩分组，详情及最新验收见 [暖白主题改版](warm-paper-theme.md)。下文带日期的旧布局记录保留用于追溯。
 
 ## 排名与时间
 

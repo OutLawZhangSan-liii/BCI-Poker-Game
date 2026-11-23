@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { IntroNeuron } from "./IntroNeuron";
+import { PRESENTATION_VERSION, cardBackPath } from "../theme/presentation";
 import { BrandWordmark } from "./BrandWordmark";
 import "./IntroFlipAnimation.css";
 
 export const FORCE_INTRO = false;
 const SESSION_KEY = "shenyoo_intro_played";
-const FRAMES = [`${import.meta.env.BASE_URL}cards/card-back-warm.svg`];
+const FRAMES = [`${import.meta.env.BASE_URL}${cardBackPath(PRESENTATION_VERSION)}`];
 
 export function shouldPlayIntro() {
   if (import.meta.env.DEV && FORCE_INTRO) return true;
@@ -15,7 +16,7 @@ export function shouldPlayIntro() {
 
 let preloaded: Promise<HTMLImageElement[]> | undefined;
 function preloadFrames() {
-  const sources = [...FRAMES, `${import.meta.env.BASE_URL}assets/branding/neuron-icon.png`, `${import.meta.env.BASE_URL}assets/branding/shoujin-wordmark.svg`];
+  const sources = [...FRAMES, `${import.meta.env.BASE_URL}assets/branding/neuron-icon.png`, `${import.meta.env.BASE_URL}assets/branding/mashanzheng-wordmark.svg`];
   return preloaded ??= Promise.all(sources.map(src => new Promise<HTMLImageElement>((resolve, reject) => {
     const image = new Image();
     image.onload = () => { image.decode().then(() => resolve(image), reject); };

@@ -1,9 +1,11 @@
 import { app, BrowserWindow, ipcMain, Menu, shell } from "electron";
+import { disableWindowTransitions } from "./windowTransitions.js";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { GatewaySidecar } from "./sidecar.js";
 import { IPC } from "./types.js";
+import { validateWindowAppearance } from "./windowAppearance.js";
 import { ChallengeStore } from "./challengeStore.js";
 import { runChallengeSmoke } from "./challengeSmoke.js";
 
@@ -62,11 +64,11 @@ function createWindow(): BrowserWindow {
     show: false,
     title: "神工 · 神游",
     titleBarStyle: "hidden",
-    titleBarOverlay: { color: "#F7F5F1", symbolColor: "#202126", height: 64 },
+    titleBarOverlay: { color: "#FAFBFE", symbolColor: "#17356B", height: 64 },
     icon: app.isPackaged
       ? path.join(process.resourcesPath, "app-icon.ico")
       : path.join(projectRoot, "packaging", "icon.ico"),
-    backgroundColor: "#F7F5F1",
+    backgroundColor: "#FAFBFE",
     webPreferences: {
       preload: path.join(currentDirectory, "../preload/preload.cjs"),
       sandbox: true,
@@ -76,6 +78,7 @@ function createWindow(): BrowserWindow {
       additionalArguments: challengeSmoke ? ["--challenge-smoke"] : [],
     },
   });
+  const transitionsReady = disableWindowTransitions(window.getNativeWindowHandle()).catch(error => console.error(error));
   window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
   if (process.env.BRAIN_GAME_RENDERER_SMOKE_TEST === "1") {
     window.webContents.on("console-message", (_event, level, message, line, sourceId) => {
@@ -88,7 +91,7 @@ function createWindow(): BrowserWindow {
   window.webContents.on("will-navigate", (event, targetUrl) => {
     if (targetUrl !== window.webContents.getURL()) event.preventDefault();
   });
-  window.on("ready-to-show", () => { if (!packageSmoke && !challengeSmoke) window.show(); });
+  window.on("ready-to-show", () => { void transitionsReady.then(() => { if (!window.isDestroyed() && !packageSmoke && !challengeSmoke) window.show(); }); });
   window.on("closed", () => {
     mainWindow = null;
   });
@@ -111,6 +114,12 @@ function registerIpc(sessionsDirectory: string): void {
   ipcMain.handle(IPC.challengeGet, (event, id: string) => { requireMainWindow(event); return challenges.get(id); });
   ipcMain.handle(IPC.challengeList, (event) => { requireMainWindow(event); return challenges.list(); });
   ipcMain.handle(IPC.challengeSave, (event, record: unknown) => { requireMainWindow(event); return challenges.save(record); });
+  ipcMain.handle(IPC.windowAppearance, (event, value: unknown) => {
+    if (!mainWindow || event.sender !== mainWindow.webContents || event.senderFrame !== mainWindow.webContents.mainFrame)
+      throw new Error("无法更新窗口外观");
+    const appearance = validateWindowAppearance(value);
+    if (process.platform === "win32" || process.platform === "linux") mainWindow.setTitleBarOverlay(appearance);
+  });
   ipcMain.handle(IPC.getStatus, () => sidecar?.getStatus() ?? "stopped");
   ipcMain.handle(IPC.getConnection, () => sidecar?.getConnection() ?? null);
   ipcMain.handle(IPC.restart, async () => sidecar?.restart());
@@ -357,7 +366,7 @@ app.whenReady().then(async () => {
             const safeRight = innerWidth - parseFloat(getComputedStyle(header).paddingRight);
             const noOverlap = i.right <= n.left + 1 && n.right <= s.left + 1 && s.right <= safeRight + 1;
             const wordmarkBounds = rect(wordmark);
-            const wordmarkVisible = getComputedStyle(wordmark).maskImage.includes('shoujin-wordmark.svg') &&
+            const wordmarkVisible = getComputedStyle(wordmark).maskImage.includes('mashanzheng-wordmark.svg') &&
               wordmarkBounds.top >= h.top && wordmarkBounds.bottom <= h.bottom && wordmarkBounds.right <= n.left;
             const valid = noOverlap && wordmarkVisible && Math.abs(h.top) <= 1 && icon.complete && icon.naturalWidth > 0 &&
               getComputedStyle(header).webkitAppRegion === 'drag' && getComputedStyle(nav).webkitAppRegion === 'no-drag' &&

@@ -5,6 +5,7 @@ type GatewayStatus = "starting" | "ready" | "faulted" | "stopping" | "stopped";
 interface GatewayConnection { url: string; token: string; protocolVersion: number; }
 interface BrainGameDesktopApi {
   readonly challengeSmokeEnabled: boolean;
+  setWindowAppearance(appearance: { color: string; symbolColor: string }): Promise<void>;
   getGatewayStatus(): Promise<GatewayStatus>;
   getGatewayConnection(): Promise<GatewayConnection | null>;
   restartGateway(): Promise<void>;
@@ -17,6 +18,7 @@ interface BrainGameDesktopApi {
 }
 
 const IPC = {
+  windowAppearance: "window:set-appearance",
   getStatus: "gateway:get-status",
   getConnection: "gateway:get-connection",
   restart: "gateway:restart",
@@ -30,6 +32,7 @@ const IPC = {
 
 const api: BrainGameDesktopApi = {
   challengeSmokeEnabled: process.argv.includes("--challenge-smoke"),
+  setWindowAppearance: (appearance) => ipcRenderer.invoke(IPC.windowAppearance, appearance),
   getGatewayStatus: () => ipcRenderer.invoke(IPC.getStatus),
   getGatewayConnection: () => ipcRenderer.invoke(IPC.getConnection),
   restartGateway: () => ipcRenderer.invoke(IPC.restart),

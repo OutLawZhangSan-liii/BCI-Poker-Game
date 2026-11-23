@@ -4,7 +4,7 @@ import type { RealTrialAnalysis } from "../bci/signal/types";
 // Fixed display scale for unbounded FBCCA scores; independent of other candidates.
 const SCORE_DISPLAY_SCALE = 3;
 
-export function DemoClassification({ analysis, labels, status }: { analysis: RealTrialAnalysis | null; labels: string[]; status: string }) {
+export function DemoClassification({ analysis, labels }: { analysis: RealTrialAnalysis | null; labels: string[] }) {
   const matches = analysis?.matches ?? [];
   // Presentation only: preserve original candidate indices used by the classifier.
   const ranked = matches.map((match, index) => ({ ...match, index })).sort((a, b) => b.score - a.score);
@@ -48,11 +48,10 @@ export function DemoClassification({ analysis, labels, status }: { analysis: Rea
   const bestScore = Math.max(0, ...ranked.map(match => Number.isFinite(match.score) ? match.score : 0));
   const invalid = analysis?.reason === "invalid_samples" || analysis?.reason === "transport_gap_suspected";
   const tone = !analysis ? "waiting" : analysis.rejected ? "rejected" : "accepted";
-  const result = !analysis ? status : invalid ? "当前数据质量不足，无法分析" : analysis.rejected ? "当前结果：不确定 / 拒识" : `预测目标：${labels[analysis.candidateIndex!]} · ${matches[analysis.candidateIndex!]?.frequencyHz} Hz`;
+  const result = !analysis ? null : invalid ? "当前数据质量不足，无法分析" : analysis.rejected ? "当前结果：不确定 / 拒识" : `预测目标：${labels[analysis.candidateIndex!]} · ${matches[analysis.candidateIndex!]?.frequencyHz} Hz`;
   const reason = analysis?.reason === "unstable_vote" ? "等待连续稳定的匹配结果" : analysis?.rejected && !invalid ? "当前匹配强度未达到判定阈值" : null;
   return <article className="demo-cca" aria-label="真实 EEG CCA 匹配与分类结果">
-    <h4>CCA 匹配（FBCCA）</h4>
-    <small className="demo-cca-description">FBCCA 使用 {ANALYSIS_LEADS.join(" / ")} 四通道联合匹配，条形按固定分数尺度显示匹配强度。</small>
+    <h4 title={`FBCCA · ${ANALYSIS_LEADS.join(" / ")}；条形表示匹配强度，不是正确概率。`}>目标匹配</h4>
     <div className="demo-cca-list" ref={listRef}>{ranked.map((match, rank) => {
       const displayScore = Number.isFinite(match.score) ? Math.max(0, match.score) : 0;
       const displayStrength = displayScore / (displayScore + SCORE_DISPLAY_SCALE);
@@ -60,11 +59,10 @@ export function DemoClassification({ analysis, labels, status }: { analysis: Rea
       return <div className={`demo-cca-row${best ? " is-best" : ""}`} key={match.frequencyHz}>
         <span className="demo-cca-frequency"><span className="demo-cca-rank" aria-label={`第 ${rank + 1} 名`}>{rank + 1}</span>{match.frequencyHz} Hz</span>
         <div className="demo-cca-track" role="meter" aria-label={`${match.frequencyHz} Hz 匹配分数`} aria-valuemin={0} aria-valuemax={1} aria-valuenow={displayStrength} aria-valuetext={`匹配分数 ${match.score.toFixed(2)}`} title="按固定分数尺度显示，分数越高条形越长；不是分类正确概率"><div className="demo-cca-fill" style={{ transform: `scaleX(${displayStrength})` }} /></div>
-        <small className="demo-cca-values">ρ = {match.correlation.toFixed(3)}<span>分数 = {match.score.toFixed(2)}</span></small>
+        <small className="demo-cca-values" title={`相关系数 ρ = ${match.correlation.toFixed(3)}`}>{match.score.toFixed(2)}</small>
       </div>;
     })}</div>
-    <div className={`demo-classification-result is-${tone}`} role="status"><strong>{result}</strong>
-      {ranked.length > 0 && <small>最高匹配：{ranked[0].frequencyHz} Hz</small>}
+    <div className={`demo-classification-result is-${tone}`} role="status" hidden={!analysis}><strong>{result}</strong>
       {reason && <small>{reason}</small>}
     </div>
   </article>;

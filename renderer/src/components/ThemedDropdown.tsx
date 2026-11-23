@@ -73,7 +73,7 @@ export function ThemedDropdown<T extends string>({ value, options, onChange, lab
         className="themed-dropdown__option" onClick={() => { onChange(option.value); close(true); }}>
         {option.prefix && <span className="themed-dropdown__prefix">{option.prefix}</span>}
         <span className="themed-dropdown__option-label">{option.label}</span>
-        <span className="themed-dropdown__check" aria-hidden="true">{option.value === value ? "✓" : option.suffix ?? ""}</span>
+        <span className="themed-dropdown__check" aria-hidden="true">{option.value === value && theme !== "course" ? "✓" : option.suffix ?? ""}</span>
       </button>)}
     </div>, document.body)}
   </div>;

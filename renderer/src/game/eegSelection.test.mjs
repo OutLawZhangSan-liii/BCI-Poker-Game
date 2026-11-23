@@ -42,3 +42,10 @@ test('only windows inside the fixed stimulus period can finish during a bounded 
  assert.equal(gameDecisionChoice({...decision,windowEndSample:Math.floor(trial.sampleRateHz*GAME_STIMULUS_MS/1000)+1},trial,deadline),null);
  assert.equal(gameDecisionChoice({...decision,windowStartSample:-1},trial,3700),null);
 });
+
+test('game accepts only the classifier selected for the active trial',()=>{
+ const butter={...trial,classifierName:'fbcca-butterworth'};
+ assert.equal(gameDecisionChoice(decision,butter,3700),null);
+ assert.equal(gameDecisionChoice({...decision,classifierName:'fbcca-butterworth'},butter,3700),0);
+ assert.equal(gameDecisionChoice({...decision,classifierName:'fbcca-butterworth'},trial,3700),null);
+});

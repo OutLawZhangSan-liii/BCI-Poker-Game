@@ -1,6 +1,6 @@
 import { canResumePresentation } from "../theme/presentation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { CHALLENGE_MODES, challengeMetrics, groupKey, rankChallenges, type ChallengeConfiguration, type ChallengeRecord, type ChallengeMode, type RankingStrategy } from "../../../desktop/main/challengeModel";
+import { CHALLENGE_MODES, challengeMetrics, rankChallenges, type ChallengeConfiguration, type ChallengeRecord, type ChallengeMode, type RankingStrategy } from "../../../desktop/main/challengeModel";
 import { GAME_PRESENTATION } from "../game/presentation";
 import "./ChallengeHub.css";
 
@@ -55,9 +55,10 @@ export function ChallengeEntry({ busy, error, active, canResume, onRankings, onR
 }
 export function ChallengeMetricNote() {
   return <details className="challenge-explanation"><summary>成绩如何计算</summary>
-    <p>每关10轮。正确率＝正确轮数÷完成轮数；错误和拒识都占一轮，拒识不重试。每轮只进行一次有效识别，因此首次正确率与最终正确率相同。</p>
-    <p>识别用时从应用记录的首个刺激绘制帧到决策或超时，包含分析等待，不含发牌、观察、倒计时和休息。它不是光电测得的屏幕响应时间。</p>
-    <p>错误或拒识中断连胜，进入下一关重新计数。正确率包含牌面规则判断与脑电识别的共同影响。速度榜要求正确率达到70%。</p>
+    <p>正确率：答对轮数 ÷ 完成轮数；错误和未识别都计入总轮数。</p>
+    <p>识别用时：从开始闪烁到结果或超时，不含准备和休息。</p>
+    <p>连胜：连续答对的轮数；错误、未识别或换关时归零。</p>
+    <p>速度榜要求正确率至少70%。成绩反映规则判断和脑电识别的综合表现。</p>
   </details>;
 }
 function Metrics({ record, mode }: { record: ChallengeRecord; mode?: ChallengeMode }) {
@@ -94,45 +95,58 @@ export function ChallengeResults({ record, mode, records, restSeconds, onContinu
     </div>
   </section>;
 }
-export function ChallengeHub({ page, onPage, records, configuration, current, highlightId, busy, warnings, onResume, onReload }: {
+export function ChallengeHub({ page, onPage, records, configuration, current, highlightId, busy, warnings, onResume, onReload, canResumeRecord }: {
   page: GamePage; onPage: (page: GamePage) => void; records: ChallengeRecord[]; configuration: ChallengeConfiguration;
   current: ChallengeRecord | null; highlightId?: string; busy: boolean; warnings: string[];
+  canResumeRecord?: (record: ChallengeRecord) => boolean;
   onResume: (id: string) => void; onReload: () => void;
 }) {
   const [strategy, setStrategy] = useState<RankingStrategy>("overall");
-  const [selectedGroup, setSelectedGroup] = useState<string>("");
   const [expanded, setExpanded] = useState<string | null>(null);
-  const groups = new Map<string, ChallengeConfiguration>([[JSON.stringify(configuration), configuration]]);
-  records.forEach(r => groups.set(groupKey(r), r.configuration));
-  const chosenConfiguration = groups.get(selectedGroup) ?? configuration;
-  const rows = rankChallenges(records, strategy, chosenConfiguration);
+  const rows = rankChallenges(records, strategy, configuration);
+  const compatible = (r: ChallengeRecord) => canResumeRecord ? canResumeRecord(r) : canResumePresentation(r.configuration,configuration);
   const unfinished = records.filter(r => r.status !== "completed");
   return <ChallengeDialog titleId="challenge-hub-title" wide busy={busy} onClose={() => onPage("free")}><div className="challenge-hub">
-    <div className="challenge-board-heading">
+    <div className="challenge-page-topbar">
+      <button className="secondary challenge-page-back" onClick={() => onPage("free")} disabled={busy} title="返回上一页，不退出软件">
+        <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M14 5l-7 7 7 7M7 12h13" /></svg>返回
+      </button>
+    </div>
+    <div className="challenge-hub-body">
+    <header className="challenge-board-heading">
       <h2 id="challenge-hub-title">{page === "rankings" ? "排行榜" : "继续挑战"}</h2>
       <div className="challenge-board-tools">
-        {page === "rankings" && <button className="secondary" onClick={onReload} disabled={busy}>刷新</button>}
-        <button className="secondary" onClick={() => onPage("free")} disabled={busy}>关闭</button>
+        {page === "rankings" && <button className="secondary" onClick={onReload} disabled={busy}>
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M20 7v5h-5M20 12a8 8 0 1 0-2 5M20 7v5" /></svg>刷新
+        </button>}
       </div>
-    </div>
+    </header>
     {warnings.map(w => <p role="status" key={w}>{w}</p>)}
     {page === "resume" && <section className="challenge-resume" aria-label="未完成挑战">
-        {!unfinished.length && <p>暂无未完成记录</p>}
-        {unfinished.map(r => <article key={r.id}><strong>{r.name} · 学号尾号 {r.studentId.slice(-4)}</strong><p>{date(r.createdAt)} · 已完成 {challengeMetrics(r).completed}/30 轮</p>
-          <button className="secondary" disabled={busy || !canResumePresentation(r.configuration, configuration)} onClick={() => onResume(r.id)}>继续</button>
-          {!canResumePresentation(r.configuration, configuration) && <small>历史配置与当前版本不同，保留记录</small>}</article>)}
+        {!unfinished.length && <div className="challenge-empty"><strong>暂无未完成的挑战</strong><p>开始新的三关挑战后，可在这里恢复进度。</p></div>}
+        {unfinished.map(r => <article key={r.id}>
+          <div className="challenge-resume-identity"><strong>{r.name}</strong><span>学号尾号 {r.studentId.slice(-4)} · {date(r.createdAt)}</span></div>
+          <span className="challenge-resume-progress">已完成 <strong>{challengeMetrics(r).completed}</strong> / 30 轮</span>
+          <button className="secondary" disabled={busy || !compatible(r)} onClick={() => onResume(r.id)}>继续</button>
+          {!compatible(r) && <small>历史配置与当前版本不同，保留记录</small>}</article>)}
       </section>}
     {page === "rankings" && <section className="challenge-leaderboard" aria-label="排行榜">
-      {groups.size > 1 && <label>成绩组<select value={JSON.stringify(chosenConfiguration)} onChange={e => setSelectedGroup(e.target.value)}>{[...groups].map(([key, config], i) => <option key={key} value={key}>{i === 0 ? "当前配置" : `历史配置 ${i}`} · {config.ruleVersion}</option>)}</select></label>}
-      <nav className="challenge-nav" aria-label="排名策略">{Object.entries(names).map(([key, label]) => <button key={key} aria-current={strategy === key ? "page" : undefined} onClick={() => setStrategy(key as RankingStrategy)}>{label}</button>)}</nav>
-      <p className="challenge-ranking-description">{strategy === "overall" ? "正确率优先，同分比较平均用时，再比较最长连胜。" : strategy === "accuracy" ? "按正确率排名，再比较拒识次数。" : strategy === "speed" ? "正确率达到70%方可上榜，比较正确轮次的平均识别用时。" : "按单关最长连胜排名，同分比较正确率和平均用时。"}</p>
+      <div className="challenge-ranking-controls">
+        <div className="challenge-strategies">
+          <nav className="challenge-nav" aria-label="排名策略">{Object.entries(names).map(([key, label]) => <button key={key} aria-current={strategy === key ? "page" : undefined} onClick={() => setStrategy(key as RankingStrategy)}>{label}</button>)}</nav>
+          <p className="challenge-ranking-description">{strategy === "overall" ? "正确率优先，同分比较平均用时，再比较最长连胜。" : strategy === "accuracy" ? "按正确率排名，再比较拒识次数。" : strategy === "speed" ? "正确率达到70%方可上榜，比较正确轮次的平均识别用时。" : "按单关最长连胜排名，同分比较正确率和平均用时。"}</p>
+        </div>
+      </div>
       {strategy === "speed" && current?.status === "completed" && challengeMetrics(current).firstCorrect < 21 && <p role="status">本次正确率 {percent(challengeMetrics(current).firstAccuracy)}，未达到速度榜70%的门槛；其他榜单仍保留本次成绩。</p>}
-      <div className="challenge-table-scroll"><table className="challenge-table"><thead><tr><th>名次</th><th>姓名</th><th>学号尾号</th><th>正确率</th><th>{strategy === "speed" ? "正确轮用时" : "平均用时"}</th><th>连胜</th><th>完成时间</th><th>详情</th></tr></thead><tbody>
+      <div className="challenge-list-heading"><h3>挑战成绩</h3><span>{rows.length} 次挑战{strategy === "speed" ? "达到门槛" : "已完成"}</span></div>
+      {rows.length > 0 && <div className="challenge-table-scroll"><table className="challenge-table challenge-ranking-table"><thead><tr><th>名次</th><th>姓名</th><th>学号尾号</th><th>正确率</th><th>{strategy === "speed" ? "正确轮用时" : "平均用时"}</th><th>连胜</th><th>完成时间</th><th>详情</th></tr></thead><tbody>
         {rows.map(row => <LeaderboardRow key={row.record.id} row={row} speed={strategy === "speed"} highlight={row.record.id === highlightId} expanded={expanded === row.record.id} onToggle={() => setExpanded(expanded === row.record.id ? null : row.record.id)} />)}
-      </tbody></table></div>
-      {!rows.length && <p className="challenge-empty">暂无符合条件的完整成绩</p>}
+      </tbody></table></div>}
+      {!rows.length && <div className="challenge-empty" role="status"><strong>{strategy === "speed" ? "暂无达到门槛的成绩" : "暂无完整成绩"}</strong>
+        <p>{strategy === "speed" ? "速度榜要求正确率达到70%，其他成绩可在其余榜单查看。" : "完成三关后即可上榜。"}</p></div>}
       <ChallengeMetricNote />
     </section>}
+    </div>
   </div></ChallengeDialog>;
 }
 function LeaderboardRow({ row, speed, highlight, expanded, onToggle }: { row: ReturnType<typeof rankChallenges>[number]; speed: boolean; highlight: boolean; expanded: boolean; onToggle: () => void }) {

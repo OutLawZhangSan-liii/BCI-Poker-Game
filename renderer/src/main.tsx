@@ -1,10 +1,12 @@
-import { WARM_PAPER_CSS, PRESENTATION_VERSION, challengePresentation, canResumePresentation } from "./theme/presentation";
+import { WindwayGame } from "./game/windway/WindwayGame";
+import { DEFAULT_GAME_CLASSIFIER, savedGameClassifier, gameClassifierConfiguration, gameClassifierIdentity, gameClassifierPolicy, type GameClassifierProfile } from "./bci/signal/gameClassifier";
+import { applyPresentation, titleBarAppearance, PRESENTATION_VERSION, CARD_SET_VERSION, GAME_SIZE_PROFILE, challengeTargetSize, challengeAppearance, challengePresentation, challengeRasterQuality, challengeCardSet, canResumePresentation } from "./theme/presentation";
+import { CURRENT_RASTER_QUALITY } from "./bci/stimulus/renderBudget";
 import { ANALYSIS_LEADS, missingAnalysisLeads } from "./bci/signal/leads";
-import { StrictMode, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { StrictMode, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { createRoot } from "react-dom/client";
 import { GatewayClient, type CommandResult } from "./bci/gatewayClient";
 import { type EegChunk } from "./bci/protocol";
-import { StimulusTimingDiagnostics } from "./components/StimulusTimingDiagnostics";
 import { StimulusTable } from "./components/StimulusTable";
 import { GameTableHud } from "./components/GameTableHud";
 import { ChallengeEntry, ChallengeHub, ChallengeResults, type GamePage } from "./components/ChallengeHub";
@@ -17,16 +19,15 @@ import { OperationRoundResults } from "./components/OperationRoundResults";
 import { OperationTrainingStatus } from "./components/OperationTrainingStatus";
 import { OperationRound, EMPTY_ROUND, OPERATION_TRIALS, TRAINING_TIMING, type OperationTrial, type TrialOutcome, type RoundState } from "./teaching/operationRound";
 import { AppHeader } from "./components/AppHeader";
-import { StatusBadge } from "./components/StatusBadge";
-import { ThemedDropdown } from "./components/ThemedDropdown";
+import { DeviceControls, type DeviceAction } from "./components/DeviceControls";
+import { GameSettingsFold } from "./components/GameSettingsFold";
 import { TeachingCourseNav } from "./components/TeachingCourseNav";
 import { TeachingLesson } from "./components/TeachingLesson";
+import { useWorkspaceEntrance } from "./components/useWorkspaceEntrance";
 import { TeachingWorkspaceNav, type TeachingWorkspace } from "./components/TeachingWorkspaceNav";
 import { RealPrincipleAnalysis } from "./components/RealPrincipleAnalysis";
 import { RealEegAnalysisPanel } from "./components/RealEegAnalysisPanel";
 import { courseById, teachingCourses, type TeachingCourse } from "./teaching/courses";
-import type { NoiseTeachingScenarioId } from "./teaching/simulatedAnalysis";
-import type { Stage8SimulationScenario } from "./teaching/simulatedAdvanced";
 import type { RealEegTap } from "./teaching/realEegAnalysis";
 import { isCurrentTeachingDecision } from "./teaching/decisionGuard";
 import { SIMPLE_STIMULUS_FREQUENCY, SIMPLE_STIMULUS_GEOMETRY, SIMPLE_TARGETS, type StimulusFrameStats, type StimulusTarget } from "./bci/stimulus/types";
@@ -37,19 +38,20 @@ import { GAME_STIMULUS_MS, GAME_ANALYSIS_GRACE_MS, gameDecisionChoice, gameEegRe
 import { gameStimulusTemplateForMode } from "./game/stimulusTemplate";
 import { GAME_PRESENTATION, GAME_COUNTDOWN_SECONDS, GAME_FEEDBACK_MS } from "./game/presentation";
 import { STIMULUS_TIMING_VERSION } from "./bci/stimulus/phase";
-import type { WorkerInput, WorkerOutput, BciDecision, CalibrationProgress, RealTrialAnalysis } from "./bci/signal/types";
+import type { WorkerInput, WorkerOutput, BciDecision, RealTrialAnalysis } from "./bci/signal/types";
 import { fbccaDecisionPolicy, FBCCA_POLICY_VERSION } from "./bci/signal/decisionPolicy";
 import { FBCCA_FILTER_WARMUP_SAMPLES } from "./bci/signal/fbcca";
 import { CARD_FACE_BRIGHTNESS_VERSION } from "./bci/stimulus/modulation";
 import "./styles.css";
 import "./components/GameTable.css";
+import "./theme/CrayonTheme.css";
+import "./theme/WorkspacePanels.css";
 
 interface DeviceProperties { acquisition_status: number; sample_rate_hz: number; samples_per_packet: number; channel_count: number; lead_names: string[]; }
 interface LinkStats { chunks: number; samplesPerChannel: number; sequenceDiscontinuities: number; reportedGaps: number; chunksPerSecond: number; }
 const emptyStats: LinkStats = { chunks: 0, samplesPerChannel: 0, sequenceDiscontinuities: 0, reportedGaps: 0, chunksPerSecond: 0 };
 type TrialStage = "ready" | "dealing" | "fixation" | "preview" | "countdown" | "stimulus" | "analyzing" | "feedback" | "rest";
-type AppView = "game" | "lab" | "teaching";
-type TrialKind = "online" | "calibration" | "isolated_diagnostic" | "teaching";
+type AppView = "game" | "windway" | "lab" | "teaching";
 type TeachingMode = "principle" | "operation";
 const gameStageLabels: Record<TrialStage, string> = {
   ready: "等待开始",
@@ -69,16 +71,9 @@ const challengeSimulation = window.brainGameDesktop.challengeSmokeEnabled === tr
 
 const pageTitles: Record<AppView, string> = {
   game: "脑控牌桌",
-  lab: "设备实验",
+  windway: "纸飞机穿风廊",
+  lab: "设备与诊断",
   teaching: "教学中心",
-};
-
-const gatewayStatusLabels: Record<GatewayStatus, { value: string; tone: "neutral" | "success" | "warning" | "danger" }> = {
-  starting: { value: "启动中", tone: "warning" },
-  ready: { value: "未连接", tone: "neutral" },
-  faulted: { value: "异常", tone: "danger" },
-  stopping: { value: "停止中", tone: "warning" },
-  stopped: { value: "已停止", tone: "neutral" },
 };
 
 const TEACHING_REFERENCE_Y = 0.5;
@@ -101,41 +96,21 @@ const buildTeachingTargets = (frequencies: number[], count: number, fillLayout =
   }));
 };
 
-const shuffledBalancedDiagnosticSequence = (): number[] => {
-  const sequence = [0, 0, 0, 0, 1, 1, 1, 1];
-  const random = new Uint32Array(sequence.length);
-  crypto.getRandomValues(random);
-  for (let index = sequence.length - 1; index > 0; index -= 1) {
-    const swapIndex = random[index] % (index + 1);
-    [sequence[index], sequence[swapIndex]] = [sequence[swapIndex], sequence[index]];
-  }
-  return sequence;
-};
-
-Object.entries(WARM_PAPER_CSS).forEach(([name, value]) => document.documentElement.style.setProperty(name, value));
+applyPresentation(PRESENTATION_VERSION);
 
 function App() {
+  const windwayPackets = useRef<((chunk: EegChunk | null) => void) | null>(null);
+  const [windwayBusy, setWindwayBusy] = useState(false);
   const clientRef = useRef(new GatewayClient());
   const lastSequence = useRef<bigint | null>(null);
   const rateWindow = useRef<number[]>([]);
   const workerRef = useRef<Worker | null>(null);
   const sessionIdRef = useRef<string | null>(null);
-  const diagnosticLastEegRef = useRef<{ sessionId: string; receivedAt: number; packetDurationMs: number; firstSampleIndex: string; gatewayMonotonicNs: string } | null>(null);
-  const trialIdRef = useRef<string | null>(null);
-  const stimulusStartedAtRef = useRef(0);
-  const firstFrameResolverRef = useRef<((value: number) => void) | null>(null);
   const dealCompleteResolverRef = useRef<(() => void) | null>(null);
-  const decisionResolverRef = useRef<((decision: BciDecision | null) => void) | null>(null);
   const stimulusEndReasonRef = useRef("not_started");
-  const trialKindRef = useRef<TrialKind>("online");
-  const cuedTargetIndexRef = useRef<number | null>(null);
-  const diagnosticSequenceRef = useRef<number[]>([]);
-  const diagnosticSequencePositionRef = useRef(0);
-  const diagnosticSequenceIndexRef = useRef<number | null>(null);
   const gameChoiceResolverRef = useRef<((choice: number | null) => void) | null>(null);
   const gameEegTrialRef = useRef<GameEegTrial | null>(null);
   const gameMarkerTrialRef = useRef<GameEegTrial | null>(null);
-  const solidDiagnosticTrialRef = useRef<{ sessionId: string; trialId: string; targetAppearance: "card" | "card-face" | "solid"; comparisonRunId?: string; sequenceIndex?: number } | null>(null);
   const gameStimulusTimerRef = useRef<number | null>(null);
   const gameLastDataAtRef = useRef(0);
   const gameTimingPendingRef = useRef(false);
@@ -146,8 +121,7 @@ function App() {
   const [gameCountdown, setGameCountdown] = useState(0);
   const [gameOnsetMs, setGameOnsetMs] = useState<number | undefined>();
   const [gameSelectedIndex, setGameSelectedIndex] = useState<number | null>(null);
-  const [timingDiagnosticActive, setTimingDiagnosticActive] = useState(false);
-  // Invalidate an in-flight game/lab trial before a responsive stimulus
+  // Invalidate an in-flight game trial before a responsive stimulus
   // geometry change can leave its promises or resolvers behind.
   const formalTrialGenerationRef = useRef(0);
   const modalRef = useRef<HTMLElement | null>(null);
@@ -160,6 +134,7 @@ function App() {
   const teachingModeRef = useRef<TeachingMode>("principle");
   const teachingTargetsRef = useRef<StimulusTarget[]>([]);
   const teachingGeometryRef = useRef<ResponsiveStimulusGeometrySnapshot | null>(null);
+  const gameGeometryRef = useRef<ResponsiveStimulusGeometrySnapshot | null>(null);
   const teachingCueIndexRef = useRef<number | null>(null);
   const teachingTimingRevisionRef = useRef(0);
   const teachingTimingPendingRef = useRef(false);
@@ -169,8 +144,10 @@ function App() {
   const teachingDataTimeoutRef = useRef(1500);
   const acquisitionGenerationRef = useRef(0);
   const [gatewayStatus, setGatewayStatus] = useState<GatewayStatus>("starting");
+  const [deviceAction, setDeviceAction] = useState<DeviceAction | null>(null);
+  const deviceActionPending = useRef(false);
+  const [deviceError, setDeviceError] = useState<string | null>(null);
   const [appView, setAppView] = useState<AppView>("game");
-  const [labWorkspace, setLabWorkspace] = useState<"device" | "timing" | "experiment">("device");
   const [connected, setConnected] = useState(false);
   const [acquiring, setAcquiring] = useState(false);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
@@ -181,13 +158,7 @@ function App() {
   const [trialStage, setTrialStage] = useState<TrialStage>("ready");
   const [trialResult, setTrialResult] = useState("尚未开始");
   const [displayRefreshRateHz, setDisplayRefreshRateHz] = useState<number | null>(null);
-  const [calibrationProgress, setCalibrationProgress] = useState<CalibrationProgress>({ counts: [0, 0], requiredPerTarget: 2 });
-  const [diagnosticProgress, setDiagnosticProgress] = useState<[number, number]>([0, 0]);
-  const [isolatedTargetIndex, setIsolatedTargetIndex] = useState<number | null>(null);
-  const [calibrationCue, setCalibrationCue] = useState<string | null>(null);
-  const [modelStatus, setModelStatus] = useState("未训练（当前使用 FBCCA）");
   const [modelSaving, setModelSaving] = useState(false);
-  const [visualTargets, setVisualTargets] = useState(SIMPLE_TARGETS);
   const [gameVisualTargets, setGameVisualTargets] = useState(() => gameStimulusTemplateForMode("simple").targets);
   const [referenceLabel, setReferenceLabel] = useState("9♠");
   const [gameMode, setGameMode] = useState<GameMode>("simple");
@@ -223,18 +194,18 @@ function App() {
     record => window.brainGameDesktop.saveChallenge(record),
     record => { setChallengeRecord(record); setChallengeRecords(previous => [record, ...previous.filter(r => r.id !== record.id)]); },
     setChallengeSaveError, record => recoverChallenge(record, "保存中断，重新准备当前轮"));
+  const classifierFingerprint = (profile: GameClassifierProfile) => gameClassifierConfiguration(profile, properties?.sample_rate_hz ?? 250, challengeSimulation, GAME_STIMULUS_MS, GAME_ANALYSIS_GRACE_MS, ONLINE_WINDOW_SECONDS);
   const challengeConfiguration = useMemo<ChallengeConfiguration>(() => ({
     ruleVersion: CHALLENGE_RULE_VERSION,
-    classifier: JSON.stringify({ name: "fbcca-cca", version: "0.3.0", policy: FBCCA_POLICY_VERSION, leads: ANALYSIS_LEADS,
-      source: challengeSimulation ? "isolated-simulation" : "real-eeg", sampleRateHz: properties?.sample_rate_hz ?? 250,
-      windowSeconds: ONLINE_WINDOW_SECONDS, filter: "continuous-fir", warmup: FBCCA_FILTER_WARMUP_SAMPLES,
-      hopSeconds: .25, harmonics: 3, filterBandsHz: [[6, 45], [14, 45]], filterLength: 257,
-      policies: [2, 4, 6].map(fbccaDecisionPolicy), stimulusMs: GAME_STIMULUS_MS, graceMs: GAME_ANALYSIS_GRACE_MS }),
-    stimulus: JSON.stringify({ presentationVersion: PRESENTATION_VERSION, timing: STIMULUS_TIMING_VERSION, brightness: CARD_FACE_BRIGHTNESS_VERSION,
+    classifier: classifierFingerprint(DEFAULT_GAME_CLASSIFIER),
+    stimulus: JSON.stringify({ gameSizeProfile: GAME_SIZE_PROFILE, presentationVersion: PRESENTATION_VERSION, cardSetVersion: CARD_SET_VERSION, rasterQuality: CURRENT_RASTER_QUALITY, timing: STIMULUS_TIMING_VERSION, brightness: CARD_FACE_BRIGHTNESS_VERSION,
       geometry: SIMPLE_STIMULUS_GEOMETRY, templates: CHALLENGE_MODES.map(gameStimulusTemplateForMode),
-      baseline: .5, amplitude: .45, depth: 1, appearance: "card", observations: CHALLENGE_MODES.map(mode => GAME_PRESENTATION[mode].observationMs),
+      baseline: .5, amplitude: .45, depth: 1, appearance: "card-face", observations: CHALLENGE_MODES.map(mode => GAME_PRESENTATION[mode].observationMs),
       countdownSeconds: GAME_COUNTDOWN_SECONDS, roundsPerMode: 10 }),
   }), [properties?.sample_rate_hz]);
+  const canResumeGameChallenge = (record: ChallengeRecord) => {
+    try { return canResumePresentation(record.configuration, {...challengeConfiguration,classifier:classifierFingerprint(savedGameClassifier(record.configuration.classifier))}); } catch { return false; }
+  };
   const reloadChallenges = async () => {
     const result = await window.brainGameDesktop.listChallenges();
     setChallengeRecords(result.records); setChallengeWarnings(result.warnings);
@@ -276,7 +247,6 @@ function App() {
   const [teachingCueIndex, setTeachingCueIndex] = useState<number | null>(null);
   const [teachingResult, setTeachingResult] = useState("刺激 → 频域特征 → CCA 匹配 → 分类结果");
   const [teachingAnalysis, setTeachingAnalysis] = useState<RealTrialAnalysis | null>(null);
-  const [teachingAnalysisProgress, setTeachingAnalysisProgress] = useState<{ samples: number; requiredSamples: number; sampleRateHz: number } | null>(null);
   const [teachingDecision, setTeachingDecision] = useState<BciDecision | null>(null);
   const [teachingDecisionMeta, setTeachingDecisionMeta] = useState<{ sessionId: string; trialId: string } | null>(null);
   const [teachingCourseId, setTeachingCourseId] = useState<TeachingCourse["id"]>("system");
@@ -285,6 +255,7 @@ function App() {
   const [teachingHarmonicFrequency, setTeachingHarmonicFrequency] = useState(12);
   const [teachingFeedbackCase, setTeachingFeedbackCase] = useState<"candidate" | "rejected" | "empty" | "mouse">("empty");
   const [analysisActionsTarget, setAnalysisActionsTarget] = useState<HTMLDivElement | null>(null);
+  const [teachingReferenceOpen,setTeachingReferenceOpen] = useState(false);
   const [teachingWorkspace, setTeachingWorkspace] = useState<TeachingWorkspace>("course");
   const teachingFrequencyValues = useMemo(() => [teachingLeftHz, teachingRightHz, ...teachingExtraHz],
     [teachingLeftHz, teachingRightHz, teachingExtraHz]);
@@ -296,7 +267,7 @@ function App() {
     setTeachingMode(mode); teachingModeRef.current = mode;
     setTeachingCueIndex(null); teachingCueIndexRef.current = null;
     teachingTrialIdRef.current = null; teachingChoiceResolverRef.current = null;
-    setTeachingDecision(null); setTeachingDecisionMeta(null); setTeachingAnalysis(null); setTeachingAnalysisProgress(null);
+    setTeachingDecision(null); setTeachingDecisionMeta(null); setTeachingAnalysis(null);
     setTeachingResult(mode === "principle" ? "刺激 → 频域特征 → CCA 匹配 → 分类结果" : "准备 → 目标 → 刺激 → 判断 → 反馈");
   };
   const updateTeachingFrequency = (index: number, value: number) => {
@@ -317,7 +288,7 @@ function App() {
     setReferenceLabel("9♠");
   };
 
-  useEffect(() => { assertGameEngine(); void measureDisplayRefreshRate().then(setDisplayRefreshRateHz).catch((cause) => setError((cause as Error).message)); }, []);
+  useEffect(() => { assertGameEngine(); void measureDisplayRefreshRate().then(setDisplayRefreshRateHz).catch(() => { /* Optional startup probe; formal trials perform their own visible-window check. */ }); }, []);
 
   useEffect(() => { teachingTargetsRef.current = teachingTargets; teachingModeRef.current = teachingMode; }, [teachingTargets, teachingMode]);
   useEffect(() => { teachingPreparationGenerationRef.current += 1; }, [appView, teachingWorkspace, teachingMode, teachingTargets, activeSessionId]);
@@ -383,7 +354,7 @@ function App() {
       if (teachingActiveRef.current && teachingLastDataAtRef.current > 0 && performance.now() - teachingLastDataAtRef.current > teachingDataTimeoutRef.current) {
         if (teachingModeRef.current === "operation") setTrainingStats(previous => ({ ...previous, rejected: previous.rejected + 1 }));
         teachingActiveRef.current = false; setTeachingActive(false); teachingChoiceResolverRef.current = null;
-        setTeachingAnalysis(null); setTeachingAnalysisProgress(null); setTeachingResult("本轮未能确定选择：EEG 数据中断，请重新开始"); roundTrialResolveRef.current?.("interrupted"); roundTrialResolveRef.current = null;
+        setTeachingAnalysis(null); setTeachingResult("本轮未能确定选择：EEG 数据中断，请重新开始"); roundTrialResolveRef.current?.("interrupted"); roundTrialResolveRef.current = null;
         if (teachingTimerRef.current !== null) { window.clearTimeout(teachingTimerRef.current); teachingTimerRef.current = null; }
         worker.postMessage({ type: "stop_trial" } satisfies WorkerInput);
       }
@@ -403,7 +374,6 @@ function App() {
       }
       if (teachingTimingPendingRef.current && (event.data.type === "analysis" || event.data.type === "analysis_progress" || event.data.type === "decision")) return;
       if (event.data.type === "analysis" && teachingActiveRef.current && event.data.analysis.sessionId === sessionIdRef.current && event.data.analysis.trialId === teachingTrialIdRef.current) setTeachingAnalysis(event.data.analysis);
-      else if (event.data.type === "analysis_progress" && teachingActiveRef.current && event.data.sessionId === sessionIdRef.current && event.data.trialId === teachingTrialIdRef.current) setTeachingAnalysisProgress(event.data);
 
       else if (event.data.type === "decision") {
         const decision = event.data.decision;
@@ -417,7 +387,6 @@ function App() {
         const { matches: _displayMatches, ...wireDecision } = decision;
         void client.command("bci_decision", wireDecision).catch((cause) => setError((cause as Error).message));
         if (!decision.rejected && decision.candidateIndex !== null) {
-          decisionResolverRef.current?.(decision);
           const gameTrial = gameEegTrialRef.current;
           if (gameTrial && !gameTimingPendingRef.current) {
             const choice = gameDecisionChoice(decision, gameTrial, performance.now());
@@ -426,16 +395,13 @@ function App() {
           if (isTeachingResult) teachingChoiceResolverRef.current?.(decision.candidateIndex);
         }
       }
-      else if (event.data.type === "calibration_progress") setCalibrationProgress(event.data.progress);
       else if (event.data.type === "etraca_model") {
-        const trainedLabel = `eTRCA 已训练：${event.data.model.trialsPerTarget.join("/")} 次`;
         const sessionId = sessionIdRef.current;
-        if (!sessionId) { setModelStatus(`${trainedLabel}（未保存）`); setError("训练完成，但当前没有活动采集会话，模型未保存"); }
+        if (!sessionId) { setError("训练完成，但当前没有活动采集会话，模型未保存"); }
         else {
-          setModelSaving(true); setModelStatus(`${trainedLabel}，正在保存…`);
+          setModelSaving(true);
           void client.command("calibration_model", { sessionId, ...event.data.model })
-            .then(() => setModelStatus(`${trainedLabel}，已保存`))
-            .catch((cause) => { setModelStatus(`${trainedLabel}（保存失败）`); setError((cause as Error).message); })
+            .catch((cause) => setError((cause as Error).message))
             .finally(() => setModelSaving(false));
         }
       }
@@ -443,7 +409,7 @@ function App() {
         setError(event.data.message);
         if (gameEegTrialRef.current) gameAbortRef.current("EEG 分析异常，本轮已取消");
         if (teachingActiveRef.current) {
-          teachingActiveRef.current = false; setTeachingActive(false); setTeachingAnalysis(null); setTeachingAnalysisProgress(null);
+          teachingActiveRef.current = false; setTeachingActive(false); setTeachingAnalysis(null);
           setTeachingResult("当前数据质量不足，无法分析"); roundTrialResolveRef.current?.("interrupted"); roundTrialResolveRef.current = null; teachingChoiceResolverRef.current = null;
           if (teachingTimerRef.current !== null) { window.clearTimeout(teachingTimerRef.current); teachingTimerRef.current = null; }
           worker.postMessage({ type: "stop_trial" } satisfies WorkerInput);
@@ -453,9 +419,6 @@ function App() {
     const onEeg = (event: Event) => {
       const chunk = (event as CustomEvent<EegChunk>).detail;
       const now = performance.now(); rateWindow.current.push(now);
-      diagnosticLastEegRef.current = { sessionId: chunk.sessionId, receivedAt: now,
-        packetDurationMs: chunk.sampleCountPerChannel * 1000 / chunk.sampleRateHz,
-        firstSampleIndex: String(chunk.firstSampleIndex), gatewayMonotonicNs: String(chunk.gatewayMonotonicNs) };
       if (chunk.sessionId === gameEegTrialRef.current?.sessionId) gameLastDataAtRef.current = now;
       if (chunk.sessionId === sessionIdRef.current && teachingActiveRef.current) teachingLastDataAtRef.current = now;
       rateWindow.current = rateWindow.current.filter((value) => now - value <= 1_000);
@@ -468,12 +431,14 @@ function App() {
       // Publish visual counters at 4 Hz; every packet still reaches both EEG
       // processing paths immediately. High packet rates must not redraw the
       // entire React interface at the acquisition frequency.
+      windwayPackets.current?.(chunk);
       realEegTapRef.current?.acceptChunk(chunk);
     };
-    const onDisconnected = () => { if (gameRunningRef.current) gameAbortRef.current("EEG 已断开，请重新连接设备"); acquisitionGenerationRef.current += 1; teachingPreparationGenerationRef.current += 1; teachingActiveRef.current = false; setTeachingActive(false); setTeachingResult("未连接 EEG 设备，等待连接"); worker.postMessage({ type: "stop_trial" } satisfies WorkerInput); if (teachingTimerRef.current !== null) { window.clearTimeout(teachingTimerRef.current); teachingTimerRef.current = null; } realEegTapRef.current?.invalidate(); sessionIdRef.current = null; setConnected(false); setAcquiring(false); setActiveSessionId(null); setTeachingDecision(null); setTeachingDecisionMeta(null); setTeachingAnalysis(null); setTeachingAnalysisProgress(null); teachingTrialIdRef.current = null; teachingChoiceResolverRef.current = null; };
+    const onDisconnected = () => { windwayPackets.current?.(null); if (gameRunningRef.current) gameAbortRef.current("EEG 已断开，请重新连接设备"); acquisitionGenerationRef.current += 1; teachingPreparationGenerationRef.current += 1; if (teachingActiveRef.current || teachingTrialIdRef.current) setTeachingResult("会话中断，请重新开始"); teachingActiveRef.current = false; setTeachingActive(false); worker.postMessage({ type: "stop_trial" } satisfies WorkerInput); if (teachingTimerRef.current !== null) { window.clearTimeout(teachingTimerRef.current); teachingTimerRef.current = null; } realEegTapRef.current?.invalidate(); sessionIdRef.current = null; setConnected(false); setAcquiring(false); setActiveSessionId(null); setTeachingDecision(null); setTeachingDecisionMeta(null); setTeachingAnalysis(null); teachingTrialIdRef.current = null; teachingChoiceResolverRef.current = null; };
     const onProtocolError = (event: Event) => {
+      windwayPackets.current?.(null);
       if (gameRunningRef.current) gameAbortRef.current("EEG 数据无效，本轮已取消");
-      realEegTapRef.current?.invalidate(); setTeachingAnalysis(null); setTeachingAnalysisProgress(null);
+      realEegTapRef.current?.invalidate(); setTeachingAnalysis(null);
       setTeachingDecision(null); setTeachingDecisionMeta(null);
       worker.postMessage({ type: "stop_trial" } satisfies WorkerInput);
       teachingActiveRef.current = false; setTeachingActive(false); teachingChoiceResolverRef.current = null;
@@ -505,22 +470,41 @@ function App() {
   const run = async (operation: () => Promise<void>) => { setError(null); try { await operation(); } catch (cause) { setError((cause as Error).message); } };
   const waitForDealComplete = () => new Promise<void>((resolve) => { dealCompleteResolverRef.current = resolve; });
   const resolveDealComplete = () => { const resolve = dealCompleteResolverRef.current; dealCompleteResolverRef.current = null; resolve?.(); };
-  const configureSignalWorker = (device: DeviceProperties, targetFrequenciesHz = SIMPLE_TARGETS.map((target) => target.frequencyHz), publishAnalysis = false, publishMatches = false, maxTrialSeconds?: number) => {
+  const configureSignalWorker = (device: DeviceProperties, targetFrequenciesHz = SIMPLE_TARGETS.map((target) => target.frequencyHz), publishAnalysis = false, publishMatches = false, maxTrialSeconds?: number, classifierProfile?: GameClassifierProfile) => {
     teachingDataTimeoutRef.current = Math.max(1500, device.samples_per_packet / device.sample_rate_hz * 2000);
     workerRef.current?.postMessage({ type: "configure", config: { sampleRateHz: device.sample_rate_hz,
       channelCount: device.channel_count, leadNames: device.lead_names, targetFrequenciesHz,
-      windowSeconds: ONLINE_WINDOW_SECONDS, hopSeconds: 0.25, harmonics: 3, ...fbccaDecisionPolicy(targetFrequenciesHz.length), publishAnalysis, publishMatches, maxTrialSeconds } } satisfies WorkerInput);
+      windowSeconds: ONLINE_WINDOW_SECONDS, hopSeconds: 0.25, harmonics: 3, ...(classifierProfile ? gameClassifierPolicy(classifierProfile,targetFrequenciesHz.length) : fbccaDecisionPolicy(targetFrequenciesHz.length)), classifierProfile, publishAnalysis, publishMatches, maxTrialSeconds } } satisfies WorkerInput);
   };
-  const connect = () => run(async () => {
+  const runDeviceAction = async (action: DeviceAction, operation: () => Promise<void>) => {
+    if (deviceActionPending.current) return;
+    deviceActionPending.current = true;
+    setDeviceAction(action);
+    setDeviceError(null);
+    setError(null);
+    try {
+      await operation();
+    } catch (cause) {
+      setDeviceError(cause instanceof Error ? cause.message : String(cause));
+    } finally {
+      deviceActionPending.current = false;
+      setDeviceAction(null);
+    }
+  };
+  const startGateway = () => runDeviceAction("gateway", () => window.brainGameDesktop.restartGateway());
+  const connect = () => runDeviceAction("connect", async () => {
     const requestGeneration = acquisitionGenerationRef.current;
     const connection = await window.brainGameDesktop.getGatewayConnection(); if (!connection) throw new Error("设备网关尚未就绪");
     if (requestGeneration !== acquisitionGenerationRef.current) return;
-    await clientRef.current.connect(connection); setConnected(true);
-    const result = await clientRef.current.command<DeviceProperties>("get_device_properties");
-    if (requestGeneration !== acquisitionGenerationRef.current) return;
-    setProperties(result.data); configureSignalWorker(result.data);
+    const client = clientRef.current;
+    if (!client.connected) await client.connect(connection);
+    const result = await client.command<DeviceProperties>("get_device_properties");
+    if (requestGeneration !== acquisitionGenerationRef.current || !client.connected) return;
+    setProperties(result.data);
+    configureSignalWorker(result.data);
+    setConnected(true);
   });
-  const start = () => run(async () => {
+  const start = () => runDeviceAction("start", async () => {
     const requestGeneration = ++acquisitionGenerationRef.current;
     // Invalidate the previous observation synchronously, before any delayed
     // device-property response can return.
@@ -532,126 +516,27 @@ function App() {
     if (requestGeneration !== acquisitionGenerationRef.current) return;
     setProperties(device.data); configureSignalWorker(device.data);
     linkStatsRef.current = emptyStats; setStats(emptyStats); lastSequence.current = null; rateWindow.current = [];
-    setDiagnosticProgress([0, 0]); setIsolatedTargetIndex(null);
-    diagnosticSequenceRef.current = shuffledBalancedDiagnosticSequence(); diagnosticSequencePositionRef.current = 0; diagnosticSequenceIndexRef.current = null;
-    trialKindRef.current = "online"; cuedTargetIndexRef.current = null;
     const sessionId = crypto.randomUUID();
-    setTeachingDecision(null); setTeachingDecisionMeta(null); setTeachingAnalysis(null); setTeachingAnalysisProgress(null);
+    setTeachingDecision(null); setTeachingDecisionMeta(null); setTeachingAnalysis(null);
     if (requestGeneration !== acquisitionGenerationRef.current) return;
     await clientRef.current.command("start_acquisition", { sessionId });
     if (requestGeneration !== acquisitionGenerationRef.current) return;
     sessionIdRef.current = sessionId; setActiveSessionId(sessionId); setAcquiring(true);
   });
-  const stop = () => run(async () => {
+  const stop = () => runDeviceAction("stop", async () => {
     if (gameRunningRef.current) gameAbortRef.current("EEG 采集已停止，本轮已取消");
     acquisitionGenerationRef.current += 1;
     formalTrialGenerationRef.current += 1;
     teachingActiveRef.current = false; setTeachingActive(false);
     if (teachingTimerRef.current !== null) { window.clearTimeout(teachingTimerRef.current); teachingTimerRef.current = null; }
     resolveDealComplete();
-    firstFrameResolverRef.current?.(performance.now()); firstFrameResolverRef.current = null;
-    decisionResolverRef.current?.(null); decisionResolverRef.current = null;
     realEegTapRef.current?.invalidate(); setActiveSessionId(null);
     const result: CommandResult = await clientRef.current.command("stop_acquisition"); setAcquiring(false);
     workerRef.current?.postMessage({ type: "stop_trial" } satisfies WorkerInput);
-    sessionIdRef.current = null; trialIdRef.current = null; trialKindRef.current = "online"; cuedTargetIndexRef.current = null;
-    teachingTrialIdRef.current = null; teachingChoiceResolverRef.current = null; setTeachingDecision(null); setTeachingDecisionMeta(null); setTeachingAnalysis(null); setTeachingAnalysisProgress(null);
-    setIsolatedTargetIndex(null); setCalibrationCue(null); setTrialStage("ready");
-    if (result.confirmation !== "device_status") setError("停止命令已发送，但设备未明确确认");
-  });
-
-  const onStimulusFirstFrame = (performanceMs: number) => {
-    const sessionId = sessionIdRef.current, trialId = trialIdRef.current;
-    stimulusStartedAtRef.current = performanceMs;
-    if (!sessionId || !trialId) return;
-    workerRef.current?.postMessage({ type: "start_trial", sessionId, trialId } satisfies WorkerInput);
-    void clientRef.current.command<{ markerSampleIndex: string; gatewayMonotonicNs: number }>("stimulus_marker", { markerType: "stimulus_start", presentationVersion: PRESENTATION_VERSION, sessionId, trialId,
-      rendererPerformanceMs: performanceMs, plannedRefreshRateHz: displayRefreshRateHz, luminanceBaseline: 0.5, modulationAmplitude: 0.45,
-      trialKind: trialKindRef.current, cuedTargetIndex: cuedTargetIndexRef.current,
-      activeTargetIds: cuedTargetIndexRef.current === null || trialKindRef.current !== "isolated_diagnostic"
-        ? SIMPLE_TARGETS.map(({ id }) => id) : [SIMPLE_TARGETS[cuedTargetIndexRef.current].id],
-      stimulusGeometry: SIMPLE_STIMULUS_GEOMETRY,
-      stimulusFrequencyVersion: SIMPLE_STIMULUS_FREQUENCY.version,
-      stimulusTimingVersion: STIMULUS_TIMING_VERSION,
-      analysisWindowSeconds: ONLINE_WINDOW_SECONDS,
-      classifierVersion: "0.3.0", filterMode: "continuous-fir", filterWarmupSamples: FBCCA_FILTER_WARMUP_SAMPLES,
-      decisionPolicyVersion: FBCCA_POLICY_VERSION, decisionPolicy: fbccaDecisionPolicy(SIMPLE_TARGETS.length),
-      diagnosticSequenceIndex: trialKindRef.current === "isolated_diagnostic" ? diagnosticSequenceIndexRef.current : null,
-      diagnosticSequence: trialKindRef.current === "isolated_diagnostic" ? diagnosticSequenceRef.current : null,
-      targets: SIMPLE_TARGETS.map(({ id, frequencyHz, phaseRad, x, y }) => ({ id, frequencyHz, phaseRad, x, y })) })
-      .then((result) => {
-        if (sessionIdRef.current !== sessionId || trialIdRef.current !== trialId) return;
-        workerRef.current?.postMessage({ type: "set_trial_marker", sessionId, trialId, firstSampleIndex: result.data.markerSampleIndex } satisfies WorkerInput);
-        firstFrameResolverRef.current?.(performanceMs);
-      })
-      .catch((cause) => { setError((cause as Error).message); firstFrameResolverRef.current?.(performanceMs); });
-  };
-
-  const onStimulusFrameStats = (frameStats: StimulusFrameStats) => {
-    const sessionId = sessionIdRef.current, trialId = trialIdRef.current; if (!sessionId || !trialId) return;
-    void clientRef.current.command("stimulus_marker", { markerType: "stimulus_end", sessionId, trialId,
-      rendererPerformanceMs: frameStats.lastFramePerformanceMs, durationMs: frameStats.lastFramePerformanceMs - frameStats.firstFramePerformanceMs,
-      endReason: stimulusEndReasonRef.current, ...frameStats }).catch((cause) => setError((cause as Error).message));
-  };
-
-  const executeTrial = async (calibrationLabel: number | null, isolatedDiagnostic = false) => {
-    const sessionId = sessionIdRef.current; if (!sessionId || !acquiring) throw new Error("请先开始采集");
-    if (trialStage !== "ready") throw new Error("当前试次尚未结束");
-    const executionGeneration = ++formalTrialGenerationRef.current;
-    const stillCurrent = () => executionGeneration === formalTrialGenerationRef.current;
-    if (document.hidden) throw new Error("窗口不可见，无法开始刺激试次");
-    const measuredRefreshRateHz = await measureDisplayRefreshRate();
-    if (!stillCurrent()) return;
-    if (document.hidden) throw new Error("窗口不可见，无法开始刺激试次");
-    setDisplayRefreshRateHz(measuredRefreshRateHz);
-    const trialId = crypto.randomUUID(); trialIdRef.current = trialId;
-    trialKindRef.current = isolatedDiagnostic ? "isolated_diagnostic" : calibrationLabel === null ? "online" : "calibration";
-    cuedTargetIndexRef.current = calibrationLabel;
-    setIsolatedTargetIndex(isolatedDiagnostic ? calibrationLabel : null);
-    setVisualTargets(SIMPLE_TARGETS); setReferenceLabel("9♠");
-    setCalibrationCue(calibrationLabel === null ? null : `${isolatedDiagnostic ? "单目标诊断" : "请持续注视"}：${SIMPLE_TARGETS[calibrationLabel].label}`);
-    setTrialResult(calibrationLabel === null ? "准备发牌" : `${isolatedDiagnostic ? "诊断" : "校准"}目标：${SIMPLE_TARGETS[calibrationLabel].label}`);
-    setTrialStage("dealing"); await waitForDealComplete(); if (!stillCurrent()) return;
-    setTrialStage("fixation"); await wait(500); if (!stillCurrent()) return;
-    setTrialStage("preview"); await wait(800); if (!stillCurrent()) return;
-    const firstFrame = new Promise<number>((resolve) => { firstFrameResolverRef.current = resolve; });
-    if (!stillCurrent()) return;
-    const selected = new Promise<BciDecision | null>((resolve) => { decisionResolverRef.current = resolve; });
-    stimulusEndReasonRef.current = "deadline"; setTrialStage("stimulus"); await firstFrame;
-    if (!stillCurrent()) return;
-    const result = calibrationLabel === null ? await Promise.race([selected, wait(GAME_STIMULUS_MS).then(() => null)]) : await wait(GAME_STIMULUS_MS).then(() => null);
-    if (!stillCurrent()) return;
-    stimulusEndReasonRef.current = isolatedDiagnostic ? "isolated_diagnostic_complete" : calibrationLabel !== null ? "calibration_complete" : result ? "selected" : "deadline";
-    decisionResolverRef.current = null; firstFrameResolverRef.current = null;
-    if (calibrationLabel !== null && !isolatedDiagnostic) workerRef.current?.postMessage({ type: "add_calibration_trial", labelIndex: calibrationLabel } satisfies WorkerInput);
-    workerRef.current?.postMessage({ type: "stop_trial" } satisfies WorkerInput);
-    if (calibrationLabel !== null && isolatedDiagnostic) {
-      setDiagnosticProgress((previous) => calibrationLabel === 0 ? [previous[0] + 1, previous[1]] : [previous[0], previous[1] + 1]);
-    }
-    setTrialResult(calibrationLabel !== null
-      ? `${isolatedDiagnostic ? "已保存单目标诊断" : "已保存校准样本"}：${SIMPLE_TARGETS[calibrationLabel].label}`
-      : result ? `识别目标：${SIMPLE_TARGETS[result.candidateIndex!]?.label ?? result.candidateIndex}` : "未能确定选择");
-    setTrialStage("feedback"); await wait(800); if (!stillCurrent()) return;
-    setTrialStage("rest"); await wait(700); if (!stillCurrent()) return;
-    trialIdRef.current = null; trialKindRef.current = "online"; cuedTargetIndexRef.current = null;
-    setIsolatedTargetIndex(null); setCalibrationCue(null); setTrialStage("ready");
-  };
-  const runTrial = () => run(() => executeTrial(null, false));
-  const runCalibrationTrial = () => run(async () => {
-    const label = calibrationProgress.counts[0] <= calibrationProgress.counts[1] ? 0 : 1;
-    await executeTrial(label, false);
-  });
-  const runIsolatedDiagnosticTrial = () => run(async () => {
-    const sequenceIndex = diagnosticSequencePositionRef.current;
-    const label = diagnosticSequenceRef.current[sequenceIndex];
-    if (label === undefined) throw new Error("本轮随机隔离序列已完成，请重新开始采集");
-    diagnosticSequencePositionRef.current += 1; diagnosticSequenceIndexRef.current = sequenceIndex;
-    await executeTrial(label, true);
-  });
-  const trainModel = () => run(async () => {
-    if (calibrationProgress.counts.some((count) => count < calibrationProgress.requiredPerTarget)) throw new Error("快速校准尚未完成");
-    setModelStatus("正在训练 eTRCA…");
-    workerRef.current?.postMessage({ type: "train_etraca", requiredPerTarget: calibrationProgress.requiredPerTarget } satisfies WorkerInput);
+    sessionIdRef.current = null;
+    teachingTrialIdRef.current = null; teachingChoiceResolverRef.current = null; setTeachingDecision(null); setTeachingDecisionMeta(null); setTeachingAnalysis(null);
+    setTrialStage("ready");
+    if (result.confirmation !== "device_status") setDeviceError("停止命令已发送，但设备未明确确认");
   });
 
   const onTeachingFirstFrame = (performanceMs: number) => {
@@ -662,7 +547,7 @@ function App() {
     const operation = teachingModeRef.current === "operation";
     workerRef.current?.postMessage({ type: "start_trial", sessionId, trialId } satisfies WorkerInput);
     void clientRef.current.command<{ markerSampleIndex: string }>("stimulus_marker", {
-      markerType: "stimulus_start", presentationVersion: PRESENTATION_VERSION, sessionId, trialId, rendererPerformanceMs: performanceMs,
+      markerType: "stimulus_start", presentationVersion: PRESENTATION_VERSION, cardSetVersion: CARD_SET_VERSION, rasterQuality: CURRENT_RASTER_QUALITY, sessionId, trialId, rendererPerformanceMs: performanceMs,
       plannedRefreshRateHz: displayRefreshRateHz, luminanceBaseline: 0.5, modulationAmplitude: 0.45,
       trialKind: "teaching", teachingMode: teachingModeRef.current,
       cuedTargetIndex: teachingCueIndexRef.current,
@@ -693,10 +578,10 @@ function App() {
     if (invalidate) {
       teachingTimingPendingRef.current = true;
       roundDecisionRef.current = null;
-      setTeachingAnalysis(null); setTeachingAnalysisProgress(null); setTeachingDecision(null); setTeachingDecisionMeta(null);
+      setTeachingAnalysis(null); setTeachingDecision(null); setTeachingDecisionMeta(null);
       workerRef.current?.postMessage({ type: "invalidate_stimulus_window", sessionId, trialId, revision: ++teachingTimingRevisionRef.current } satisfies WorkerInput);
     }
-    setTeachingResult(warning ? "显示不稳定：刺激继续，等待完整稳定 EEG 窗口" : invalidate ? "明显卡顿：刺激继续，重新积累稳定 EEG 窗口" : teachingModeRef.current === "operation" ? "请注视目标" : "刺激中，等待真实 EEG 窗口");
+    setTeachingResult(warning ? "显示不稳定：刺激继续，等待完整稳定 EEG 窗口" : invalidate ? "明显卡顿：刺激继续，重新积累稳定 EEG 窗口" : teachingModeRef.current === "operation" ? "请注视目标" : "刺激中");
   };
 
   const onTeachingFrameStats = (frameStats: StimulusFrameStats) => {
@@ -756,20 +641,6 @@ function App() {
     setTeachingWorkspace(workspace);
     focusTeachingWorkspace(workspace);
   };
-  const applyNoiseTeachingScenario = (id: NoiseTeachingScenarioId) => {
-    if (teachingActive) return;
-    setTeachingResult("原理演示仅使用真实 EEG，请先连接设备并开始采集");
-    changeTeachingMode("principle");
-    setTeachingWorkspace("run");
-    focusTeachingWorkspace("run");
-  };
-  const applyAdvancedSimulationScenario = (id: Stage8SimulationScenario["id"]) => {
-    if (teachingActive) return;
-    setTeachingResult("原理演示仅使用真实 EEG，请先连接设备并开始采集");
-    changeTeachingMode("principle");
-    setTeachingWorkspace("run");
-    focusTeachingWorkspace("run");
-  };
   const goToPrincipleDemo = () => { changeTeachingMode("principle"); setTeachingWorkspace("run"); focusTeachingWorkspace("run"); };
 
   const handleTeachingChoice = (choice: number) => {
@@ -780,6 +651,7 @@ function App() {
 
   const performTeachingStimulus = async (operationTrial?: OperationTrial, roundIndex?: number) => {
     if (teachingActiveRef.current || teachingPreparingRef.current) return;
+    if (deviceActionPending.current) throw new Error("请等待设备操作完成");
     if (!connected || !properties || !acquiring || !sessionIdRef.current) throw new Error("请先连接 EEG 设备并开始采集");
     if (missingAnalysisLeads(properties.lead_names).length) throw new Error(`当前数据质量不足：分类需要 ${ANALYSIS_LEADS.join("、")} 真实导联`);
     setTeachingWorkspace("run");
@@ -822,7 +694,7 @@ function App() {
     teachingEndReasonRef.current = "teaching_complete";
     teachingChoiceResolverRef.current = teachingMode === "operation" ? handleTeachingChoice : null;
     teachingCueIndexRef.current = cue;
-    setTeachingDecision(null); setTeachingDecisionMeta(null); setTeachingAnalysis(null); setTeachingAnalysisProgress(null); setTeachingCueIndex(cue);
+    setTeachingDecision(null); setTeachingDecisionMeta(null); setTeachingAnalysis(null); setTeachingCueIndex(cue);
     if (teachingMode === "operation") {
       teachingActiveRef.current = false;
       teachingPreparingRef.current = true; setTeachingPreparing(true);
@@ -840,7 +712,7 @@ function App() {
       if (operationTrial) roundRef.current!.setPhase("STIMULATING");
     }
     setTeachingActive(true);
-    setTeachingResult(teachingMode === "operation" ? `请注视 ${teachingTargets[cue ?? 0].label}` : "刺激中，等待真实 EEG 窗口");
+    setTeachingResult(teachingMode === "operation" ? `请注视 ${teachingTargets[cue ?? 0].label}` : "刺激中");
     if (teachingMode === "operation") teachingTimerRef.current = window.setTimeout(() => finishTeaching("本轮未能确定选择"), TRAINING_TIMING.stimulusMs);
   };
   const startTeachingStimulus = () => run(async () => { roundRef.current?.reset(); await performTeachingStimulus(); });
@@ -869,6 +741,7 @@ function App() {
   useEffect(() => () => roundRef.current?.stop(), []);
 
   const startEegGame = (rounds: number, challenge?: ChallengeRecord) => {
+    if (deviceActionPending.current) { setError("请等待设备操作完成"); return false; }
     const readiness = gameEegReadiness(connected, acquiring && Boolean(sessionIdRef.current), properties?.lead_names ?? []);
     if (readiness) { setError(readiness); return false; }
     if (trialStage !== "ready") return false;
@@ -886,9 +759,26 @@ function App() {
     return true;
   };
   const gamePresentation = challengeRecord ? challengePresentation(challengeRecord.configuration.stimulus) : PRESENTATION_VERSION;
+  const activeGameClassifier = challengeRecord ? savedGameClassifier(challengeRecord.configuration.classifier) : DEFAULT_GAME_CLASSIFIER;
+  const gameAppearance = challengeRecord ? challengeAppearance(challengeRecord.configuration.stimulus) : "card-face";
+  const gameTargetSize = challengeRecord ? challengeTargetSize(challengeRecord.configuration.stimulus) : GAME_SIZE_PROFILE;
+  const gameCardSet = challengeRecord ? challengeCardSet(challengeRecord.configuration.stimulus) : CARD_SET_VERSION;
+  const activePresentation = appView === "game" ? gamePresentation : PRESENTATION_VERSION;
+  const gameFloatingModalOpen = appView === "game" && (rulesOpen || (!gameRunning && !gameFinished && (
+    (challengeEntryOpen && gamePage === "free") ||
+    (gamePage === "rankings" || gamePage === "resume")
+  )));
+  const floatingModalOpen = gameFloatingModalOpen || (appView === "teaching" && teachingReferenceOpen);
+  useLayoutEffect(() => {
+    applyPresentation(activePresentation);
+    // Native caption buttons sit above the DOM and do not receive its backdrop.
+    void window.brainGameDesktop.setWindowAppearance(titleBarAppearance(activePresentation, floatingModalOpen))
+      .catch(cause => console.error("窗口按钮颜色同步失败", cause));
+  }, [activePresentation, floatingModalOpen]);
+  const gameRasterQuality = challengeRecord ? challengeRasterQuality(challengeRecord.configuration.stimulus) : CURRENT_RASTER_QUALITY;
   const sendGameMarker = (payload: Record<string, unknown>) => challengeSimulation
     ? Promise.resolve({ data: { markerSampleIndex: "0" } })
-    : clientRef.current.command<{ markerSampleIndex: string }>("stimulus_marker", { presentationVersion: gamePresentation, ...payload });
+    : clientRef.current.command<{ markerSampleIndex: string }>("stimulus_marker", { presentationVersion: gamePresentation, cardSetVersion: gameCardSet, gameSizeProfile: gameTargetSize, rasterQuality: gameRasterQuality, classifierProfile: activeGameClassifier, classifierName: gameClassifierIdentity(activeGameClassifier).name, targetAppearance: gameAppearance, stimulusFootprint: gameAppearance === "card-face" ? "card" : "seat", brightnessMethod: gameAppearance === "card-face" ? CARD_FACE_BRIGHTNESS_VERSION : "42+178*luminance-v1", ...payload });
   const challengeAction = async (action: () => Promise<void>) => {
     if (challengeActionRef.current) return;
     challengeActionRef.current = true; setChallengeBusy(true); setError(null);
@@ -900,12 +790,13 @@ function App() {
     if (!record || record.status === "completed") return;
     const readiness = gameEegReadiness(connected, acquiring && Boolean(sessionIdRef.current), properties?.lead_names ?? []);
     if (readiness) throw new Error(readiness);
-    if (!canResumePresentation(record.configuration, challengeConfiguration)) throw new Error("挑战配置与当前版本不一致，不能续玩");
+    if (!canResumeGameChallenge(record)) throw new Error("挑战配置与当前版本不一致，不能续玩");
     if (Date.now() < record.restUntil) { setRestSeconds(Math.ceil((record.restUntil - Date.now()) / 1000)); return; }
     const ready = await challengeSessionRef.current!.mutate(r => ({ ...recoverChallenge(r, "恢复挑战，未完成尝试作废"), status: "running" }));
     if (startEegGame(10, ready)) setChallengeEntryOpen(false);
   });
   const createNewChallenge = (studentId: string, name: string) => void challengeAction(async () => {
+    if (deviceActionPending.current) throw new Error("请等待设备操作完成");
     const readiness = gameEegReadiness(connected, acquiring && Boolean(sessionIdRef.current), properties?.lead_names ?? []);
     if (readiness) throw new Error(readiness);
     if (restSeconds > 0) throw new Error(`请休息 ${restSeconds} 秒后开始`);
@@ -916,7 +807,7 @@ function App() {
   });
   const resumeChallenge = (id: string) => void challengeAction(async () => {
     const record = await window.brainGameDesktop.getChallenge(id);
-    if (!canResumePresentation(record.configuration, challengeConfiguration)) throw new Error("历史挑战配置与当前版本不同");
+    if (!canResumeGameChallenge(record)) throw new Error("历史挑战配置与当前版本不同");
     if (record.status === "completed") return;
     challengeSessionRef.current!.load(record); setGamePage("free"); setChallengeEntryOpen(false);
     const remaining = Math.max(0, Math.ceil((record.restUntil - Date.now()) / 1000));
@@ -973,12 +864,12 @@ function App() {
       });
       if (!stillCurrent()) return;
     }
-    if (!challengeSimulation) configureSignalWorker(properties!, targets.map(target => target.frequencyHz), false, false, GAME_STIMULUS_MS / 1000);
+    if (!challengeSimulation) configureSignalWorker(properties!, targets.map(target => target.frequencyHz), false, false, GAME_STIMULUS_MS / 1000, activeGameClassifier);
     const onsetMs = performance.now();
     gameFirstFrameRef.current = challengeSimulation ? onsetMs : null;
-    const trial: GameEegTrial = { sessionId, trialId, frequencies: targets.map(target => target.frequencyHz), onsetMs, sampleRateHz: properties!.sample_rate_hz };
+    const trial: GameEegTrial = { classifierName: gameClassifierIdentity(activeGameClassifier).name, sessionId, trialId, frequencies: targets.map(target => target.frequencyHz), onsetMs, sampleRateHz: properties!.sample_rate_hz };
     gameEegTrialRef.current = trial; gameMarkerTrialRef.current = trial; gameTimingPendingRef.current = false;
-    gameLastDataAtRef.current = onsetMs; stimulusStartedAtRef.current = onsetMs;
+    gameLastDataAtRef.current = onsetMs;
     stimulusEndReasonRef.current = "game_stimulus_deadline";
     if (!challengeSimulation) workerRef.current?.postMessage({ type: "start_trial", sessionId, trialId: trial.trialId } satisfies WorkerInput);
     const choice = new Promise<number | null>(resolve => { gameChoiceResolverRef.current = resolve; });
@@ -987,10 +878,12 @@ function App() {
       rendererPerformanceMs: onsetMs, plannedRefreshRateHz: refreshRate, luminanceBaseline: .5, modulationAmplitude: .45,
       trialKind: "online", cuedTargetIndex: null, activeTargetIds: targets.map(target => target.id),
       stimulusGeometry: { ...SIMPLE_STIMULUS_GEOMETRY, layout: template.layout, referenceX: template.referenceX, referenceY: template.referenceY },
+      responsiveStimulusGeometry: gameGeometryRef.current,
+      modulatedRegionGeometry: gameGeometryRef.current?.targets.map(t => gameAppearance === "card-face" ? t.card : t.ring),
       stimulusFrequencyVersion: gameMode === "simple" ? SIMPLE_STIMULUS_FREQUENCY.version : `${template.layout}-frequency-v1`,
       stimulusTimingVersion: STIMULUS_TIMING_VERSION, analysisWindowSeconds: ONLINE_WINDOW_SECONDS,
-      classifierVersion: "0.3.0", filterMode: "continuous-fir", filterWarmupSamples: FBCCA_FILTER_WARMUP_SAMPLES,
-      decisionPolicyVersion: FBCCA_POLICY_VERSION, decisionPolicy: fbccaDecisionPolicy(targets.length),
+      classifierVersion: gameClassifierIdentity(activeGameClassifier).version, filterMode: activeGameClassifier === "butterworth-trial-v1" ? "continuous-butterworth-sos" : "continuous-fir", filterWarmupSamples: FBCCA_FILTER_WARMUP_SAMPLES,
+      decisionPolicyVersion: activeGameClassifier === "butterworth-trial-v1" ? "butterworth-raw-share025-margin008-v1" : FBCCA_POLICY_VERSION, decisionPolicy: gameClassifierPolicy(activeGameClassifier,targets.length),
       gameMode, roundNumber: gameRoundNumber + 1, retry: false, challengeId: challenge?.id, challengeRuleVersion: challenge?.configuration.ruleVersion,
       referenceCard: round.reference, candidateCards: round.candidates, correctIndex: round.correctIndex,
       targets: targets.map(({ id, label, frequencyHz, phaseRad, x, y }) => ({ id, label, frequencyHz, phaseRad, x, y })) })
@@ -1101,7 +994,7 @@ function App() {
     if (challengeSimulation) return;
     const trial = gameMarkerTrialRef.current; if (!trial) return;
     gameMarkerTrialRef.current = null;
-    void clientRef.current.command("stimulus_marker", { markerType: "stimulus_end", sessionId: trial.sessionId, trialId: trial.trialId,
+    void clientRef.current.command("stimulus_marker", { markerType: "stimulus_end", presentationVersion: gamePresentation, cardSetVersion: gameCardSet, gameSizeProfile: gameTargetSize, rasterQuality: gameRasterQuality, sessionId: trial.sessionId, trialId: trial.trialId,
       rendererPerformanceMs: Math.min(performance.now(), trial.onsetMs + GAME_STIMULUS_MS),
       durationMs: Math.min(GAME_STIMULUS_MS, performance.now() - trial.onsetMs), endReason: stimulusEndReasonRef.current,
       ...frameStats, logicalStimulusStartMs: trial.onsetMs }).catch(cause => setError((cause as Error).message));
@@ -1115,38 +1008,12 @@ function App() {
     if (warning) setTrialResult("请注视所选牌 · 显示不稳定");
   };
 
-  const cancelLabTrialForDisplay = (endReason = "display_environment_changed", message = "显示环境已变化，请重新开始") => {
-    if (gameRunning || (trialStage !== "stimulus" && trialStage !== "dealing" && trialStage !== "fixation" && trialStage !== "preview")) return;
-    formalTrialGenerationRef.current += 1;
-    resolveDealComplete();
-    const canceledGeneration = formalTrialGenerationRef.current;
-    stimulusEndReasonRef.current = endReason;
-    firstFrameResolverRef.current?.(performance.now());
-    firstFrameResolverRef.current = null;
-    decisionResolverRef.current?.(null);
-    decisionResolverRef.current = null;
-    workerRef.current?.postMessage({ type: "stop_trial" } satisfies WorkerInput);
-    setIsolatedTargetIndex(null);
-    setCalibrationCue(null);
-    setTrialStage("ready");
-    setTrialResult(message);
-    // Let the active StimulusTable cleanup emit its normal end statistics,
-    // then clear trial identity without ever touching a newer trial.
-    window.setTimeout(() => {
-      if (formalTrialGenerationRef.current !== canceledGeneration) return;
-      trialIdRef.current = null;
-      trialKindRef.current = "online";
-      cuedTargetIndexRef.current = null;
-    }, 250);
-  };
-
   useEffect(() => {
     const onVisibilityChange = () => {
       if (!document.hidden) return;
       if (teachingActive) finishTeaching("窗口已隐藏，本次教学试次已停止", "display_hidden");
       if (trialStage === "ready") return;
       if (gameRunning) cancelGameTrialForDisplay("窗口已隐藏，本轮已取消");
-      else cancelLabTrialForDisplay("display_hidden", "窗口已隐藏，本次试次无效，请重做");
     };
     document.addEventListener("visibilitychange", onVisibilityChange);
     return () => document.removeEventListener("visibilitychange", onVisibilityChange);
@@ -1188,15 +1055,16 @@ function App() {
     if (nextMode) { selectGameMode(nextMode); openGameRules(); }
   };
 
-  const gatewaySummary = connected ? { value: "已连接", tone: "success" as const } : gatewayStatusLabels[gatewayStatus];
-  const teachingUsesRealEeg = Boolean(connected && activeSessionId && acquiring);
+  const devicePanelId = "header-device-controls";
+  const deviceControlsLocked = windwayBusy || gameRunning || gameFinished || teachingActive || teachingPreparing ||
+    roundState.active || trialStage !== "ready" || floatingModalOpen;
   const teachingHasActiveEegSession = Boolean(activeSessionId && acquiring);
   const teachingRunIsPrinciple = teachingWorkspace === "run" && teachingMode === "principle";
   const teachingRunIsOperation = teachingWorkspace === "run" && teachingMode === "operation";
   const teachingRealAnalysisVisible = teachingWorkspace === "observe";
   const currentTeachingCourse = courseById(teachingCourseId);
   const completeTeachingCourse = () => setCompletedTeachingCourses((previous) => new Set(previous).add(teachingCourseId));
-  const selectTeachingCourse = (id: TeachingCourse["id"]) => { setTeachingCourseId(id); setTeachingDecision(null); setTeachingDecisionMeta(null); setTeachingAnalysis(null); setTeachingAnalysisProgress(null); };
+  const selectTeachingCourse = (id: TeachingCourse["id"]) => { setTeachingCourseId(id); setTeachingDecision(null); setTeachingDecisionMeta(null); setTeachingAnalysis(null); };
   const gameConsoleStatus = restSeconds > 0
     ? `轮间休息 ${restSeconds} 秒`
     : gameFinished
@@ -1206,8 +1074,12 @@ function App() {
           ? trialResult === "正在检查显示" ? trialResult : "观察参考牌 · 找到目标"
           : gameStageLabels[trialStage]
         : (trialResult || "等待开始");
-  return <main className={`shell shell--${appView} ${appView === "lab" ? `shell--lab-${labWorkspace}` : appView === "teaching" ? `shell--teaching-${teachingWorkspace}` : ""}`}><section className="dashboard">
-    <AppHeader title={pageTitles[appView]}
+  const workspaceRoot = useRef<HTMLElement>(null);
+  const entranceSelector = appView === "game" ? ".game-workspace" : appView === "teaching" && teachingWorkspace === "course" ? ".teaching-lesson" : appView === "teaching" ? ".teaching-panel" : ".dashboard > :not(.app-header):not(.error)";
+  useWorkspaceEntrance(workspaceRoot, `${appView}/${teachingWorkspace}/${teachingMode}/${teachingCourseId}`, entranceSelector,
+    !gameRunning && !teachingActive && !teachingPreparing && !roundState.active && trialStage === "ready");
+  return <main ref={workspaceRoot} className={`shell shell--${appView === "windway" ? "game" : appView} ${appView === "lab" ? "shell--lab-device" : appView === "teaching" ? `shell--teaching-${teachingWorkspace}` : ""}`}><section className="dashboard">
+    {!windwayBusy && <AppHeader title={pageTitles[appView]}
       navigation={<nav className="view-nav view-nav--segmented" aria-label="主界面" onKeyDown={event => {
         if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
         const buttons = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>("button:not(:disabled)"));
@@ -1216,19 +1088,17 @@ function App() {
         event.preventDefault();
         buttons[(index + (event.key === "ArrowRight" ? 1 : -1) + buttons.length) % buttons.length].focus();
       }}>
-        <span className="view-nav__indicator" aria-hidden="true" style={{ transform: `translateX(${appView === "game" ? 0 : appView === "teaching" ? 100 : 200}%)` }} />
-        <button aria-current={appView === "game" ? "page" : undefined} onClick={() => setAppView("game")} disabled={timingDiagnosticActive || trialStage !== "ready" || teachingActive}>游戏牌桌</button>
-        <button aria-current={appView === "teaching" ? "page" : undefined} onClick={() => setAppView("teaching")} disabled={timingDiagnosticActive || gameRunning || trialStage !== "ready" || teachingActive}>教学模式</button>
-        <button aria-current={appView === "lab" ? "page" : undefined} onClick={() => setAppView("lab")} disabled={timingDiagnosticActive || gameRunning || trialStage !== "ready" || teachingActive}>设备与实验</button></nav>}
-      status={<><StatusBadge label="网关" value={gatewaySummary.value} tone={gatewaySummary.tone} /><StatusBadge label="采集" value={acquiring ? "进行中" : "未采集"} tone={acquiring ? "success" : "neutral"} /></>} />
-    {error && <div className="error" role="alert">{error}</div>}
-    {appView === "lab" && <>
-    <div className="lab-workspace-nav" aria-label="设备与实验工作区"><nav className="lab-workspace-nav__buttons" aria-label="工作区页签"><button type="button" aria-current={labWorkspace === "device" ? "page" : undefined} className={labWorkspace === "device" ? "" : "secondary"} disabled={timingDiagnosticActive} onClick={() => setLabWorkspace("device")}>设备与诊断</button><button type="button" aria-current={labWorkspace === "experiment" ? "page" : undefined} className={labWorkspace === "experiment" ? "" : "secondary"} disabled={timingDiagnosticActive} onClick={() => setLabWorkspace("experiment")}>实验与校准</button><button type="button" aria-current={labWorkspace === "timing" ? "page" : undefined} className={labWorkspace === "timing" ? "" : "secondary"} disabled={timingDiagnosticActive} onClick={() => setLabWorkspace("timing")}>刺激时序诊断</button></nav><ThemedDropdown className="lab-workspace-nav__select" theme="dark" label="当前工作区" ariaLabel="选择设备与实验工作区" menuLabel="设备与实验工作区"
-      disabled={timingDiagnosticActive} value={labWorkspace} onChange={setLabWorkspace}
-      options={[{ value: "device", label: "设备与诊断" }, { value: "experiment", label: "实验与校准" }, { value: "timing", label: "刺激时序诊断" }]} /></div>
-    {labWorkspace === "device" && <section className="lab-device-workspace" aria-label="设备与诊断工作区">
-    <div className="actions lab-device-toolbar"><div className="lab-device-toolbar__status"><span className="lab-device-toolbar__label">当前链路</span><strong>{connected ? `设备已连接 · ${acquiring ? "采集中" : "未采集"}` : gatewayStatus === "ready" ? "网关可用，设备未连接" : "网关未启动"}</strong></div><div className="lab-device-toolbar__actions"><button onClick={connect} disabled={gatewayStatus !== "ready" || connected}>连接网关</button>
-      <button onClick={start} disabled={!connected || acquiring}>开始采集</button><button onClick={stop} disabled={!acquiring || modelSaving}>停止采集</button>
+        <button className="app-header__action" aria-current={appView === "game" ? "page" : undefined} onClick={() => setAppView("game")} disabled={windwayBusy || trialStage !== "ready" || teachingActive}><span>游戏牌桌</span></button>
+        <button className="app-header__action" aria-current={appView === "windway" ? "page" : undefined} onClick={() => setAppView("windway")} disabled={deviceControlsLocked || challengeBusy || Boolean(challengeSaveError) || restSeconds > 0}><span>纸飞机</span></button>
+        <button className="app-header__action" aria-controls="teaching-workspace" aria-current={appView === "teaching" ? "page" : undefined} onClick={() => setAppView("teaching")} disabled={windwayBusy || gameRunning || trialStage !== "ready" || teachingActive}><span>教学模式</span></button>
+      </nav>}
+      status={<DeviceControls id={devicePanelId} workspace={appView} gatewayStatus={gatewayStatus}
+        connected={connected} acquiring={acquiring} locked={deviceControlsLocked} modelSaving={modelSaving}
+        pending={deviceAction} error={deviceError} onStartGateway={startGateway} onConnect={connect}
+        onStart={start} onStop={stop} onDiagnostics={() => setAppView("lab")} />} />}
+    {error && !windwayBusy && <div className="error" role="alert">{error}</div>}
+    {appView === "lab" && <section className="lab-device-workspace" aria-labelledby="device-diagnostics-title">
+    <div className="actions lab-device-toolbar"><div className="lab-device-toolbar__status"><h2 id="device-diagnostics-title">设备与诊断</h2><strong>{connected ? `设备已连接 · ${acquiring ? "采集中" : "未采集"}` : "设备未连接"}</strong></div><div className="lab-device-toolbar__actions"><button type="button" className="paper-primary" popoverTarget={devicePanelId} disabled={deviceControlsLocked}>连接与采集</button>
       <button className="secondary" onClick={() => window.brainGameDesktop.openSessionFolder()}>会话目录</button></div></div>
     <div className="grid lab-device-main"><article className="card"><h2>设备属性</h2><dl>
       <div><dt>连接</dt><dd>{connected ? "已连接" : "未连接"}</dd></div><div><dt>采样率</dt><dd>{properties ? `${properties.sample_rate_hz} Hz` : "—"}</dd></div>
@@ -1239,87 +1109,19 @@ function App() {
       <div><dt>网关间隔告警</dt><dd>{stats.reportedGaps}</dd></div>
     </dl></article></div>
     <details className="card lab-log-summary"><summary>日志与会话信息</summary><p>最近错误：{error ?? "—"}</p><p>链路告警：序号不连续 {stats.sequenceDiscontinuities} · 网关间隔告警 {stats.reportedGaps}</p><button className="secondary" onClick={() => window.brainGameDesktop.openSessionFolder()}>会话目录</button></details>
-</section>}
-    {labWorkspace === "timing" && <section className="lab-timing-workspace" aria-label="刺激时序诊断工作区">
-    <StimulusTimingDiagnostics disabled={gameRunning || teachingActive || teachingPreparing || roundState.active || trialStage !== "ready"} comparisonEnabled={acquiring && Boolean(activeSessionId)} onRunningChange={setTimingDiagnosticActive}
-      getEegFreshness={() => { const latest = diagnosticLastEegRef.current;
-        return latest && latest.sessionId === sessionIdRef.current ? { ageMs: Math.max(0, performance.now() - latest.receivedAt), packetDurationMs: latest.packetDurationMs } : { ageMs: null, packetDurationMs: null }; }}
-      onFirstFrame={(performanceMs, mode, refreshRateHz, context) => {
-        const sessionId = sessionIdRef.current; if (!sessionId) return;
-        const trialId = crypto.randomUUID(); solidDiagnosticTrialRef.current = { sessionId, trialId, targetAppearance: context.appearance, comparisonRunId: context.comparisonRunId, sequenceIndex: context.sequenceIndex };
-        const cue = context.condition ? 0 : mode === "left" ? 0 : mode === "right" ? 1 : null;
-        const latest = diagnosticLastEegRef.current;
-        return clientRef.current.command("stimulus_marker", { markerType: "stimulus_start", presentationVersion: PRESENTATION_VERSION, sessionId, trialId,
-          trialKind: "timing_diagnostic", targetAppearance: context.appearance, rendererPerformanceMs: performanceMs,
-          fixationPoint: context.fixationPoint,
-          fixationMode: context.fixationMode, eegFreshnessPolicy: context.eegFreshnessPolicy,
-          fixationModulation: { mode: context.fixationMode, phaseOffsetRad: 0,
-            method: context.fixationMode === "synchronous" ? "concentric-rgb-scaled-by-target-level-v1" : "opaque-concentric-v1",
-            geometry: context.geometry?.targets.map(target => ({ x: target.centerX, y: target.centerY, radius: 10 })) },
-          comparisonRunId: context.comparisonRunId, comparisonProtocol: context.protocol, sequenceIndex: context.sequenceIndex, repetition: context.repetition,
-          comparisonSegment: context.segment, analysisWindowsSeconds: context.analysisWindowsSeconds,
-          stimulusFootprint: context.stimulusFootprint, outerFlicker: context.outerFlicker, brightnessMethod: context.brightnessMethod,
-          modulatedRegionGeometry: context.geometry?.targets.map(target => ({ ...(context.stimulusFootprint === "card" ? target.card : target.ring), cornerRadius: context.stimulusFootprint === "card" ? 10 : 16 })),
-          rgbLevelMapping: context.appearance === "card-face" ? "clamp(0.525+(luminance-0.5)/0.45*0.475*depth,0,1)*originalRGB" : "42+178*luminance-v1",
-          excludedFromModulationGeometry: context.appearance === "card" ? context.geometry?.targets.map(target => ({ ...target.card, cornerRadius: 10 })) : [],
-          rgbChannelStyle: context.appearance === "card" ? "legacy-blue-plus5" : "achromatic",
-          condition: context.condition, plannedDurationMs: context.plannedDurationMs, responsiveStimulusGeometry: context.geometry,
-          rendererCallbackDelayMs: Math.max(0, performance.now() - performanceMs),
-          lastEegAgeMs: latest && latest.sessionId === sessionId ? Math.max(0, performance.now() - latest.receivedAt) : null,
-          lastEegPacketDurationMs: latest?.packetDurationMs, lastEegFirstSampleIndex: latest?.firstSampleIndex, lastEegGatewayMonotonicNs: latest?.gatewayMonotonicNs,
-          synchronizationMethod: "gateway-arrival-estimate", hardwareSynchronized: false,
-          plannedRefreshRateHz: refreshRateHz, luminanceBaseline: .5, modulationAmplitude: context.modulationAmplitude,
-          cuedTargetIndex: cue, attentionConfirmed: false,
-          activeTargetIds: context.activeTargetIds,
-          targets: context.targets.map(({ id, label, frequencyHz, phaseRad, x, y }) => ({ id, label, frequencyHz, phaseRad, x, y })),
-          stimulusGeometry: context.condition ? { version: "diagnostic-central-v1", referenceVisible: false, targetX: .5, targetY: .5 } : { ...SIMPLE_STIMULUS_GEOMETRY, referenceVisible: false },
-          stimulusFrequencyVersion: context.condition ? "diagnostic-0-12-15-v1" : SIMPLE_STIMULUS_FREQUENCY.version,
-          stimulusTimingVersion: STIMULUS_TIMING_VERSION }).then(() => {}).catch(cause => { setError((cause as Error).message); throw cause; });
-      }}
-      onComplete={(frameStats, endReason) => {
-        const trial = solidDiagnosticTrialRef.current; solidDiagnosticTrialRef.current = null;
-        if (!trial || sessionIdRef.current !== trial.sessionId) return;
-        const latest = diagnosticLastEegRef.current;
-        return clientRef.current.command("stimulus_marker", { markerType: "stimulus_end", ...trial,
-          trialKind: "timing_diagnostic",
-          lastEegAgeMs: latest && latest.sessionId === trial.sessionId ? Math.max(0, performance.now() - latest.receivedAt) : null,
-          rendererCallbackDelayMs: Math.max(0, performance.now() - frameStats.lastFramePerformanceMs),
-          rendererPerformanceMs: frameStats.lastFramePerformanceMs,
-          durationMs: frameStats.lastFramePerformanceMs - frameStats.firstFramePerformanceMs,
-          endReason, ...frameStats }).then(() => {}).catch(cause => { setError((cause as Error).message); throw cause; });
-      }} />
     </section>}
-    </>}
-    {appView === "lab" && labWorkspace === "experiment" && <article className="experiment-card lab-experiment-workspace">
-      <div className="experiment-toolbar"><div><p className="eyebrow">实验工具</p><h2>校准与在线识别</h2></div>
-      <div className="trial-status"><span>{trialStage} · {displayRefreshRateHz ? `${displayRefreshRateHz} Hz` : "检测刷新率"}</span><strong>{calibrationCue ?? trialResult}</strong></div>
-      <button onClick={runTrial} disabled={!acquiring || trialStage !== "ready" || !displayRefreshRateHz}>运行一次试次</button></div>
-      <StimulusTable active={trialStage === "stimulus"} dealing={trialStage === "dealing"} targets={visualTargets} activeTargetIndex={isolatedTargetIndex} referenceLabel={referenceLabel}
-        referenceY={SIMPLE_STIMULUS_GEOMETRY.referenceY} refreshRateHz={displayRefreshRateHz ?? 60}
-        onFirstFrame={onStimulusFirstFrame} onFrameStats={onStimulusFrameStats} onDealComplete={resolveDealComplete}
-        onResizeWhileActive={() => cancelLabTrialForDisplay()}
-        onTimingFault={() => cancelLabTrialForDisplay("dropped_frame", "刺激出现丢帧，本次试次无效，请重做")}
-        onTargetClick={undefined} />
-      <p className="stimulus-note">静止牌面 · 牌后正弦光带 · 最长 {GAME_STIMULUS_MS} ms · 实际首帧发送 marker · 刷新率预检驱动</p>
-      <div className="calibration-bar"><div><strong>快速校准（链路检查）</strong><span>左 {calibrationProgress.counts[0]}/2 · 右 {calibrationProgress.counts[1]}/2 · {modelStatus}</span></div>
-        <button className="secondary" onClick={runCalibrationTrial} disabled={!acquiring || trialStage !== "ready"}>采集下一校准样本</button>
-        <button onClick={trainModel} disabled={!acquiring || modelSaving || trialStage !== "ready" || calibrationProgress.counts.some((count) => count < 2)}>{modelSaving ? "正在保存模型" : "训练 eTRCA"}</button></div>
-      <div className="calibration-bar"><div><strong>单目标隔离诊断</strong><span>随机平衡序列 · 左 {diagnosticProgress[0]}/4 · 右 {diagnosticProgress[1]}/4 · 仅被提示目标闪烁，不进入 eTRCA</span></div>
-        <button className="secondary" onClick={runIsolatedDiagnosticTrial} disabled={!acquiring || trialStage !== "ready" || diagnosticProgress.every((count) => count >= 4)}>采集下一单目标测试</button>
-        <span>{diagnosticProgress.every((count) => count >= 4) ? "8 次已完成" : "共需 8 次"}</span></div>
-    </article>}
-    {appView === "teaching" && <article className={`teaching-panel teaching-panel--${teachingWorkspace} ${teachingActive ? "teaching-live" : ""}`}>
+    {appView === "teaching" && <article id="teaching-workspace" className={`teaching-panel teaching-panel--${teachingWorkspace} ${teachingActive ? "teaching-live" : ""}`}>
       <TeachingWorkspaceNav current={teachingWorkspace} disabled={teachingActive || teachingPreparing || roundState.active} onSelect={selectTeachingWorkspace} />
 
       <section id="teaching-course-workspace" className="teaching-workspace-panel teaching-course-workspace" role="tabpanel" tabIndex={-1} aria-label="课程学习工作区" hidden={teachingWorkspace !== "course"}>
         <TeachingCourseNav courses={teachingCourses} currentId={teachingCourseId} completed={completedTeachingCourses} disabled={teachingActive}
           onSelect={selectTeachingCourse} />
-        <TeachingLesson course={currentTeachingCourse} completed={completedTeachingCourses.has(teachingCourseId)} onComplete={completeTeachingCourse} onSelectCourse={selectTeachingCourse}
+        <TeachingLesson onReferenceOpenChange={setTeachingReferenceOpen} course={currentTeachingCourse} onComplete={completeTeachingCourse} onSelectCourse={selectTeachingCourse}
           frequencyPreview={teachingPreviewFrequency} onFrequencyPreview={setTeachingPreviewFrequency}
           harmonicFrequency={teachingHarmonicFrequency} onHarmonicFrequencyChange={setTeachingHarmonicFrequency}
           targetCount={teachingTargetCount} onTargetPreset={applyTeachingTargetPreset}
           feedbackCase={teachingFeedbackCase} onFeedbackCaseChange={setTeachingFeedbackCase}
-          onNoiseScenario={applyNoiseTeachingScenario} onSimulationScenario={applyAdvancedSimulationScenario} onGoToSimulation={goToPrincipleDemo} locked={teachingActive} />
+          onGoToDemo={goToPrincipleDemo} locked={teachingActive} />
       </section>
 
       <div className={`training-top ${teachingMode === "principle" ? "training-top--principle" : ""}`} hidden={teachingWorkspace !== "run"}>
@@ -1341,12 +1143,12 @@ function App() {
           {teachingMode === "principle" && <label>观察目标 <select value={teachingActiveTargetIndex ?? "all"} onChange={(event) => setTeachingActiveTargetIndex(event.target.value === "all" ? null : Number(event.target.value))} disabled={teachingActive}><option value="all">全部目标</option>{teachingTargets.map((target, index) => <option key={target.id} value={index}>{target.label} · {target.frequencyHz} Hz</option>)}</select></label>}
          </div>
         </details>
-        <TrainingControlBar key={`control-${teachingMode}`} mode={teachingMode} countdown={trainingCountdown} trial={teachingTrialNumber} realEeg={teachingUsesRealEeg} running={teachingActive} preparing={teachingPreparing} result={teachingResult} error={error}>
+        <TrainingControlBar key={`control-${teachingMode}`} mode={teachingMode} countdown={trainingCountdown} trial={teachingTrialNumber} running={teachingActive} preparing={teachingPreparing} result={teachingResult} error={error}>
           {teachingMode === "operation" && roundState.active ? <>
             <button onClick={() => roundState.paused ? roundRef.current?.resume() : roundRef.current?.pause()}>{roundState.paused ? "恢复训练" : "暂停训练"}</button>
             <button className="secondary" onClick={() => { roundRef.current?.stop(); setTeachingResult("训练已结束"); }}>结束本轮</button>
           </> : <>
-          <button disabled={teachingPreparing} onClick={teachingActive ? () => finishTeaching(teachingMode === "principle" ? "演示已暂停" : "训练已暂停") : startTeachingStimulus}>{teachingPreparing ? trainingCountdown ? `${trainingCountdown} 秒后开始` : "正在检查显示…" : teachingActive ? teachingMode === "principle" ? "停止演示" : "停止训练" : teachingMode === "principle" ? "开始原理演示" : roundState.phase === "ROUND_COMPLETE" ? "开始单试次" : teachingTrialNumber ? "下一试次" : "开始操作训练"}</button>
+          <button className={teachingActive ? "paper-stop" : "paper-primary"} disabled={teachingPreparing} onClick={teachingActive ? () => finishTeaching(teachingMode === "principle" ? "演示已暂停" : "训练已暂停") : startTeachingStimulus}>{teachingPreparing ? trainingCountdown ? `${trainingCountdown} 秒后开始` : "正在检查显示…" : teachingActive ? teachingMode === "principle" ? "停止演示" : "停止训练" : teachingMode === "principle" ? "开始原理演示" : roundState.phase === "ROUND_COMPLETE" ? "开始单试次" : teachingTrialNumber ? "下一试次" : "开始操作训练"}</button>
             {teachingMode === "operation" && <button className="secondary" onClick={startOperationRound} disabled={teachingActive || teachingPreparing || operationTargetCount !== 2} title={operationTargetCount !== 2 ? "完整轮次使用两张牌，请将目标数量设为 2 个" : "左单闪、右单闪、同时闪看左、同时闪看右"}>{roundState.phase === "ROUND_COMPLETE" ? "再来一轮" : "开始完整轮次"}</button>}
           </>}
 
@@ -1373,45 +1175,41 @@ function App() {
       </section>
 
       <aside className={`teaching-run-side ${teachingRunIsPrinciple ? "principle-demo-side" : "teaching-run-side--observe"}`} aria-label="分析区域" hidden={!teachingRunIsPrinciple && teachingWorkspace !== "observe"}>
-        {teachingRunIsPrinciple && <RealPrincipleAnalysis analysis={teachingAnalysis} labels={teachingTargets.map(target => target.label)} targetFrequencies={teachingTargets.filter((_, index) => teachingActiveTargetIndex === null || teachingActiveTargetIndex === index).map(target => target.frequencyHz)} connected={connected} acquiring={acquiring && Boolean(activeSessionId)} running={teachingActive} progress={teachingAnalysisProgress} notice={teachingResult} />}
+        {teachingRunIsPrinciple && <RealPrincipleAnalysis analysis={teachingAnalysis} labels={teachingTargets.map(target => target.label)} targetFrequencies={teachingTargets.filter((_, index) => teachingActiveTargetIndex === null || teachingActiveTargetIndex === index).map(target => target.frequencyHz)} connected={connected} acquiring={acquiring && Boolean(activeSessionId)} notice={teachingResult} />}
         <section id="teaching-observe-workspace" className="teaching-workspace-panel teaching-observe-workspace" role="tabpanel" aria-label="信号观察工作区" tabIndex={-1} hidden={teachingWorkspace !== "observe"}>
           <div className="teaching-analysis-toolbar">
-            <span className="real-eeg-source-title">实时网关 EEG</span>
+            <h2 className="real-eeg-source-title">脑电信号观察</h2>
             <div className="teaching-analysis-toolbar__actions" ref={setAnalysisActionsTarget} />
           </div>
-          <RealEegAnalysisPanel actionsTarget={teachingWorkspace === "observe" ? analysisActionsTarget : null} active={teachingRealAnalysisVisible && teachingHasActiveEegSession} visible={teachingRealAnalysisVisible} activeSessionId={activeSessionId} acquiring={acquiring} properties={properties} chunkTapRef={realEegTapRef} onGoToLab={() => setAppView("lab")} />
+          <RealEegAnalysisPanel actionsTarget={teachingWorkspace === "observe" ? analysisActionsTarget : null} active={teachingRealAnalysisVisible && teachingHasActiveEegSession} visible={teachingRealAnalysisVisible} activeSessionId={activeSessionId} acquiring={acquiring} properties={properties} chunkTapRef={realEegTapRef} devicePanelId={devicePanelId} deviceControlsLocked={deviceControlsLocked} />
         </section>
       </aside>
       </div>
     </article>}
+    {appView === "windway" && <WindwayGame onBusy={setWindwayBusy} packets={windwayPackets} sessionId={connected && acquiring ? activeSessionId : null} leads={properties?.lead_names} rate={properties?.sample_rate_hz} />}
     {appView === "game" && <section className={`game-workspace ${gameRunning || gameFinished ? "game-focus" : ""} ${gameRunning ? "game-live" : ""}`} aria-label="游戏工作区">
       {!gameRunning && !gameFinished && <div className="game-console game-console--setup" aria-label="游戏控制台">
-        <div className="game-console__settings">
-          <ThemedDropdown compact className="game-console__field" theme="dark" label="难度" ariaLabel="游戏难度" menuLabel="游戏难度选项"
-            value={gameMode} onChange={selectGameMode} options={[{ value: "simple", label: "简单" }, { value: "difficult1", label: "进阶" }, { value: "difficult2", label: "困难" }]} />
-          <ThemedDropdown compact className="game-console__field" theme="dark" label="局长" ariaLabel="游戏局长" menuLabel="游戏局长选项"
-            value={String(selectedGameLength)} onChange={(value) => setSelectedGameLength(Number(value))} disabled={restSeconds > 0}
-            options={[{ value: "10", label: "10 轮" }, { value: "15", label: "15 轮" }]} />
-        </div>
+        <GameSettingsFold mode={gameMode} length={selectedGameLength} lengthDisabled={restSeconds > 0} onMode={selectGameMode} onLength={setSelectedGameLength} />
+        <span className="game-setup-status" role="status">等待开始</span>
         <div className="game-console__actions game-console__actions--challenge">
-            <button className="secondary game-console__challenge" onClick={() => changeGamePage("challenge")} disabled={challengeBusy || Boolean(challengeSaveError) || restSeconds > 0}>三关挑战</button>
-
-          <button className="secondary game-console__rules" onClick={openGameRules} disabled={challengeBusy || Boolean(challengeSaveError)}>规则</button>
+          <button className="secondary game-console__challenge" onClick={() => changeGamePage("challenge")} disabled={challengeBusy || Boolean(challengeSaveError) || restSeconds > 0}><svg className="paper-action-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="m7 4 10 .4-.6 6.8c-.4 5-8.3 5.2-8.8-.1L7 4Zm.4 2H3.5c-.6 4 1.2 6 4.2 6M17 6h3.5c.5 3.8-1 5.7-4 6M12 15v5m-4 1 8-.3" /></svg>三关挑战</button>
+          <button className="secondary game-console__rules" onClick={openGameRules} disabled={challengeBusy || Boolean(challengeSaveError)}><svg className="paper-action-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5C9 3 5 3 2.5 4l.5 15c3-1 6-1 9 1 3-2 6-2 9-1l.5-15C19 3 15 3 12 5Zm0 0v15M5 8l4 .5M5 12l4 .5m6-4 4-.5m-4 4 4-.5" /></svg>规则</button>
           {restSeconds > 0 && <small role="status">休息 {restSeconds} 秒</small>}
         </div>
       </div>}
       <article className="experiment-card table-only game-table-card">
-        <div className="game-table-frame" data-presentation={gamePresentation}>
-          <StimulusTable presentationVersion={gamePresentation} surface="game" active={!challengeSimulation && trialStage === "stimulus"} dealing={!challengeSimulation && trialStage === "dealing"} targets={gameVisualTargets} activeTargetIndex={null}
-            stimulusStartTimestamp={gameOnsetMs} stimulusEndTimestamp={gameOnsetMs === undefined ? undefined : gameOnsetMs + GAME_STIMULUS_MS} selectedTargetIndex={trialStage === "feedback" ? gameSelectedIndex : null} showReference referenceLabel={referenceLabel}
-            referenceX={gameStimulusTemplateForMode(gameMode).referenceX} referenceY={gameStimulusTemplateForMode(gameMode).referenceY} referenceTag={gameMode === "difficult2" ? "参考牌" : undefined} refreshRateHz={displayRefreshRateHz ?? 60}
+        <div className="game-table-frame" data-game-size={gameTargetSize} data-classifier={activeGameClassifier} data-presentation={gamePresentation}>
+          <StimulusTable targetAppearance={gameAppearance} stimulusFootprint={gameAppearance === "card-face" ? "card" : "seat"} targetSize={gameTargetSize} presentationVersion={gamePresentation} cardSetVersion={gameCardSet} rasterQuality={gameRasterQuality} surface="game" active={!challengeSimulation && trialStage === "stimulus"} dealing={!challengeSimulation && trialStage === "dealing"} targets={gameVisualTargets} activeTargetIndex={null}
+            stimulusStartTimestamp={gameOnsetMs} stimulusEndTimestamp={gameOnsetMs === undefined ? undefined : gameOnsetMs + GAME_STIMULUS_MS} selectedTargetIndex={trialStage === "feedback" ? gameSelectedIndex : null} selectedTargetCorrect={gameSelectedIndex !== null && gameRound?.correctIndex === gameSelectedIndex} showReference referenceLabel={referenceLabel}
+            referenceX={gameStimulusTemplateForMode(gameMode).referenceX} referenceY={gameStimulusTemplateForMode(gameMode).referenceY} referenceTag="参考牌" refreshRateHz={displayRefreshRateHz ?? 60}
             modulationDepth={1}
             onFrameStats={onGameFrameStats} onDealComplete={resolveDealComplete}
+            onGeometryChange={snapshot => { gameGeometryRef.current = snapshot; }}
             onFirstFrame={timestamp => { if (gameEegTrialRef.current) gameFirstFrameRef.current = timestamp; }}
             onTimingDisruption={onGameTimingDisruption} onTimingFault={() => cancelGameTrialForDisplay("刺激严重或持续丢帧，本轮已取消")}
             onResizeWhileActive={() => cancelGameTrialForDisplay()}
             onTargetClick={undefined} />
-          {(gameRunning || gameFinished) && <GameTableHud mode={gameMode} round={gameRoundNumber} length={gameLength} score={gameScore} streak={gameStreak}
+          {(gameRunning || gameFinished) && <GameTableHud bottomPrompt={gameTargetSize === "game-open-v3" || gameTargetSize === "game-open-v4"} mode={gameMode} round={gameRoundNumber} length={gameLength} score={gameScore} streak={gameStreak}
             participant={challengeRecord?.name}
             challengeResults={challengeRecord && gameFinished ? <ChallengeResults record={challengeRecord} mode={gameMode} records={challengeRecords} restSeconds={restSeconds}
               onContinue={continueChallenge} onRankings={() => changeGamePage("rankings")} onAgain={() => changeGamePage("challenge")} onHome={() => changeGamePage("free")} /> : undefined}
@@ -1424,20 +1222,19 @@ function App() {
       {!gameRunning && !gameFinished && challengeEntryOpen && <ChallengeEntry busy={challengeBusy} error={error} active={gamePage === "free"}
         canResume={challengeRecords.some(r => r.status !== "completed")} onRankings={() => changeGamePage("rankings", true)} onResume={() => changeGamePage("resume", true)}
         onCreate={createNewChallenge} onClose={() => setChallengeEntryOpen(false)} />}
-      {!gameRunning && !gameFinished && (gamePage === "rankings" || gamePage === "resume") && <ChallengeHub page={gamePage} onPage={page => changeGamePage(page, challengeEntryOpen)} records={challengeRecords} configuration={challengeConfiguration}
+      {!gameRunning && !gameFinished && (gamePage === "rankings" || gamePage === "resume") && <ChallengeHub canResumeRecord={canResumeGameChallenge} page={gamePage} onPage={page => changeGamePage(page, challengeEntryOpen)} records={challengeRecords} configuration={challengeConfiguration}
         current={challengeRecord} highlightId={challengeRecord?.id} busy={challengeBusy} warnings={challengeWarnings}
         onResume={resumeChallenge} onReload={() => void challengeAction(reloadChallenges)} />}
       {challengeSaveError && <div className="challenge-save-error" role="alert"><p>{challengeSaveError}。刺激已停止，未保存的结果仍保留在当前窗口。</p><button onClick={retryChallengeSave} disabled={challengeBusy}>重试保存</button></div>}
       {rulesOpen && <div className="game-modal-backdrop" role="presentation"><section className="game-modal game-rules-modal" role="dialog" aria-modal="true" aria-labelledby="game-rules-title" aria-describedby="game-rules-description" tabIndex={-1} ref={(element) => { modalRef.current = element; }}>
-        <div className="game-modal__header"><h2 id="game-rules-title">{GAME_PRESENTATION[gameMode].name}</h2><span>{GAME_PRESENTATION[gameMode].count} 张候选牌</span></div>
+        <div className="game-modal__header"><h2 id="game-rules-title">{GAME_PRESENTATION[gameMode].name}</h2></div>
         <div className="game-modal__body">
           <h3>玩法</h3><p id="game-rules-description">{GAME_PRESENTATION[gameMode].rule}</p>
-          <h3>选择方式</h3><p>请注视目标牌，系统使用真实 EEG + FBCCA 完成选牌。</p>
           <h3>识别失败</h3><p>未确定 / 拒识时，本轮计为未成功并进入下一轮，连胜归零。</p>
           <details><summary>注意事项</summary><p>如出现头痛、眩晕、恶心或视觉不适，请退出本局并休息。</p></details>
           {restSeconds > 0 && <small>休息 {restSeconds} 秒后可开始</small>}
           <div className="game-modal__actions"><button className="secondary" onClick={() => { setRulesOpen(false); setGameFinished(false); }}>返回调整</button>
-            <button onClick={startFreeGame} disabled={restSeconds > 0 || challengeBusy || Boolean(challengeSaveError)}>开始本局</button></div>
+            <button className="paper-primary" onClick={startFreeGame} disabled={restSeconds > 0 || challengeBusy || Boolean(challengeSaveError)}>开始本局</button></div>
         </div>
       </section></div>}
     </section>}

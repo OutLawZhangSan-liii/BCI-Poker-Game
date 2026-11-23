@@ -67,3 +67,80 @@ test('principle targets enlarge moderately with unchanged surround proportions a
   assert.ok(enlarged.cardWidth>standard.cardWidth*minimumScale);
  }
 });
+
+test('comfortable game cards scale faces and surrounds together without overlap', async () => {
+ const {SIMPLE_TARGETS,DIFFICULT1_TARGETS,DIFFICULT2_DEMO_TARGETS}=await import('./types.ts');
+ for(const [width,height] of [[1824,850],[1824,920],[912,400],[912,470]]) {
+  for(const source of [SIMPLE_TARGETS,DIFFICULT1_TARGETS,DIFFICULT2_DEMO_TARGETS]) {
+   const six=source.length===6;
+   const input={width,height,targets:source.map(t=>({...t,x:t.x-(six?.045:0)})),compactCards:source.length>2,showReference:true,referenceX:six?.11:.5,referenceY:six?.38:source.length===2?.24:.52,deckTopRatio:.14};
+   const old=computeResponsiveStimulusGeometry(input);
+   const next=computeResponsiveStimulusGeometry({...input,targetSize:'game-comfortable-v1'});
+   assert.ok(next.cardWidth>=old.cardWidth);
+   if(width>1800) assert.ok(next.cardWidth>old.cardWidth*1.15, 'large screen '+source.length);
+   assert.ok(Math.abs(next.ringX/next.cardWidth-old.ringX/old.cardWidth)<1e-10);
+   assert.ok(Math.abs(next.ringY/next.cardHeight-old.ringY/old.cardHeight)<1e-10);
+   const boxes=[...next.targets.map(t=>t.ring),next.reference.card];
+   for(const [index,a] of boxes.entries()) {
+    assert.ok(a.x>=0&&a.y>=0&&a.x+a.width<=width+.01&&a.y+a.height<=height+.01);
+    for(const b of boxes.slice(index+1)) assert.ok(!(a.x<b.x+b.width&&b.x<a.x+a.width&&a.y<b.y+b.height&&b.y<a.y+a.height));
+   }
+  }
+ }
+});
+
+test('whole-card game enlarges only faces inside validated seats', async () => {
+ const {SIMPLE_TARGETS,DIFFICULT1_TARGETS,DIFFICULT2_DEMO_TARGETS}=await import('./types.ts');
+ for(const [width,height] of [[1872,886],[912,462],[912,300]])for(const source of [SIMPLE_TARGETS,DIFFICULT1_TARGETS,DIFFICULT2_DEMO_TARGETS]){
+  const six=source.length===6; const template={targets:source.map(t=>({...t,x:t.x-(six?.045:0)})),referenceX:six?.11:.5,referenceY:six?.38:source.length===2?.24:.52};
+  const input={width,height,...template,compactCards:template.targets.length>2,showReference:true,deckTopRatio:.14};
+  const old=computeResponsiveStimulusGeometry({...input,targetSize:'game-comfortable-v1'});
+  const next=computeResponsiveStimulusGeometry({...input,targetSize:'game-card-face-v2'});
+  assert.equal(next.sizeProfile,'game-card-face-v2');
+  assert.ok(next.cardWidth>old.cardWidth*1.1);
+  assert.ok(next.cardWidth<=old.cardWidth*1.12+.001);
+  assert.deepEqual(next.reference,old.reference);
+  for(const [i,t]of next.targets.entries()){
+   assert.deepEqual(t.ring,old.targets[i].ring);
+   assert.equal(t.centerX,old.targets[i].centerX);assert.equal(t.centerY,old.targets[i].centerY);
+   assert.ok(t.card.x>=t.ring.x&&t.card.y>=t.ring.y);
+   assert.ok(t.card.x+t.card.width<=t.ring.x+t.ring.width+.001&&t.card.y+t.card.height<=t.ring.y+t.ring.height+.001);
+  }
+ }
+});
+test('open game layout enlarges 1080p cards while separating all modes from reference and deck', async()=>{
+ const {SIMPLE_TARGETS,DIFFICULT1_TARGETS,DIFFICULT2_DEMO_TARGETS}=await import('./types.ts');
+ const overlap=(a,b)=>a.x<b.x+b.width&&b.x<a.x+a.width&&a.y<b.y+b.height&&b.y<a.y+a.height;
+ for(const [width,height]of[[1872,842],[1232,562],[912,408]])for(const source of[SIMPLE_TARGETS,DIFFICULT1_TARGETS,DIFFICULT2_DEMO_TARGETS]){
+  const next=computeResponsiveStimulusGeometry({width,height,targets:source,targetSize:'game-open-v3'});
+  const boxes=[...next.targets.map(t=>t.ring),next.reference.card];
+  for(const [i,a]of boxes.entries()) {assert.ok(a.x>=0&&a.y>=0&&a.x+a.width<=width&&a.y+a.height<=height);for(const b of boxes.slice(i+1))assert.ok(!overlap(a,b));}
+  assert.equal(next.targets.length,source.length);
+  if(width===1872){const six=source.length===6;const old=computeResponsiveStimulusGeometry({width,height:886,targets:source.map(t=>({...t,x:t.x-(six?.045:0)})),compactCards:source.length>2,showReference:true,referenceX:six?.11:.5,referenceY:six?.38:source.length===2?.24:.52,targetSize:'game-card-face-v2'});assert.ok(next.cardWidth>old.cardWidth*1.05);
+    const minGap=g=>Math.min(...g.targets.flatMap((a,i)=>g.targets.slice(i+1).map(b=>Math.hypot(Math.max(a.card.x-b.card.x-b.card.width,b.card.x-a.card.x-a.card.width,0),Math.max(a.card.y-b.card.y-b.card.height,b.card.y-a.card.y-a.card.height,0)))));
+    assert.ok(minGap(next)>=minGap(old),'1080p candidate spacing '+source.length);}
+ }
+});
+
+test('lowered v4 game enlarges all faces by five percent and clears all viewport edges', async()=>{
+ const {SIMPLE_TARGETS,DIFFICULT1_TARGETS,DIFFICULT2_DEMO_TARGETS}=await import('./types.ts');
+ const overlap=(a,b)=>a.x<b.x+b.width&&b.x<a.x+a.width&&a.y<b.y+b.height&&b.y<a.y+a.height;
+ for(const [width,height] of [[1872,842],[1232,562],[912,408],[1872,484]])for(const targets of [SIMPLE_TARGETS,DIFFICULT1_TARGETS,DIFFICULT2_DEMO_TARGETS]){
+  const previous=computeResponsiveStimulusGeometry({width,height,targets,targetSize:'game-open-v3'});
+  const next=computeResponsiveStimulusGeometry({width,height,targets,targetSize:'game-open-v4'});
+  assert.equal(next.sizeProfile,'game-open-v4');assert.ok(Math.abs(next.cardWidth/previous.cardWidth-1.05)<1e-12);
+  assert.ok(Math.abs(next.reference.card.width/previous.reference.card.width-1.05)<1e-12);
+  for(const [i,t]of next.targets.entries()){assert.equal(t.centerX,previous.targets[i].centerX);assert.ok(t.centerY>previous.targets[i].centerY);}
+  const boxes=[...next.targets.map(t=>t.ring),next.reference.card];
+  for(const [i,a]of boxes.entries()){assert.ok(a.x>=0&&a.y>=0&&a.x+a.width<=width&&a.y+a.height<=height,JSON.stringify({width,height,a}));for(const b of boxes.slice(i+1))assert.ok(!overlap(a,b));}
+ }
+});
+
+test('saved v3 coordinates retain the pre-adjustment 1080p contract', async()=>{
+ const {SIMPLE_TARGETS,DIFFICULT1_TARGETS,DIFFICULT2_DEMO_TARGETS}=await import('./types.ts');
+ const expected=[{width:260.1178947368421,height:363.40000000000003,centers:[[393.12,549.2],[1478.88,549.2]],ref:[826,32.12352941176471,220,307.3529411764706]},{width:237.49894736842106,height:331.8,centers:[[411.84,181.85],[1460.16,181.85],[411.84,632.15],[1460.16,632.15]],ref:[836,267.2941176470588,200,279.4117647058824]},{width:237.49894736842106,height:331.8,centers:[[561.6,181.85],[1057.6799999999998,181.85],[1553.76,181.85],[561.6,632.15],[1057.6799999999998,632.15],[1553.76,632.15]],ref:[78.47999999999999,281.2647058823529,180,251.47058823529412]}];
+ for(const [index,targets]of [SIMPLE_TARGETS,DIFFICULT1_TARGETS,DIFFICULT2_DEMO_TARGETS].entries()){
+  const g=computeResponsiveStimulusGeometry({width:1872,height:842,targets,targetSize:'game-open-v3'}),r=g.reference.card;
+  assert.deepEqual({width:g.cardWidth,height:g.cardHeight,centers:g.targets.map(t=>[t.centerX,t.centerY]),ref:[r.x,r.y,r.width,r.height]},expected[index]);
+ }
+});

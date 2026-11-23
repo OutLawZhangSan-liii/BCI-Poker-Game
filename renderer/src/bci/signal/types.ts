@@ -1,6 +1,7 @@
 import type { PowerSpectrum } from "../../teaching/simulatedAnalysis";
 
 export interface SignalConfig {
+  classifierProfile?: "fir-baseline-v1" | "butterworth-trial-v1";
   sampleRateHz: number;
   channelCount: number;
   leadNames: string[];

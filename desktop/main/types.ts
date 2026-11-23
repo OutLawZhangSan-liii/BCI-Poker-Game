@@ -12,6 +12,7 @@ export interface GatewayConnection {
 }
 
 export const IPC = {
+  windowAppearance: "window:set-appearance",
   getStatus: "gateway:get-status",
   getConnection: "gateway:get-connection",
   restart: "gateway:restart",

@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="zh"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>国风涂鸦扑克 · 手绘感样稿</title>
+<link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f4efe4;--fg:#25306b;--panel:#fffdf7;--line:#d9d0bb;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1d2033;--fg:#dfe6ff;--panel:#272b45;--line:#3b4066;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#1d2033;--fg:#dfe6ff;--panel:#272b45;--line:#3b4066;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:'Ma Shan Zheng','STKaiti','KaiTi',serif;padding:16px}
+h1{text-align:center;font-weight:400;font-size:28px;margin:8px 0 2px}
+h2{max-width:960px;margin:22px auto 10px;font-weight:400;font-size:22px}.suitbar{max-width:960px;margin:0 auto 12px}.suitbar button{opacity:.55}.suitbar button.on{opacity:1}
+p.sub{text-align:center;margin:0 0 14px;opacity:.75;font-size:15px}
+.panel{max-width:900px;margin:0 auto 18px;background:var(--panel);border:2px solid var(--line);border-radius:14px;padding:12px 16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px 18px;font-size:16px}
+label{display:flex;flex-direction:column;gap:2px}
+input[type=range]{width:100%}
+.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+button{font:inherit;background:var(--fg);color:var(--bg);border:0;border-radius:10px;padding:6px 14px;cursor:pointer}
+#grid,#pips{max-width:960px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px}
+#grid svg,#pips svg{width:100%;height:auto;filter:drop-shadow(0 3px 5px rgba(0,0,0,.25))}
+</style></head><body>
+<h1>国风涂鸦扑克</h1>
+<p class="sub">拖动滑杆，看线条怎么从“精致插画”变成“真的拿笔涂出来的”</p>
+<div class="panel">
+<label>线条抖动 <input id="rough" type="range" min="0" max="12" step=".5" value="3"></label>
+<label>套色错位（色块偏离线稿） <input id="mis" type="range" min="0" max="8" step=".5" value="2"></label>
+<label>涂不满（留白、笔触） <input id="gap" type="range" min="0" max="1" step=".05" value=".3"></label>
+<label>线条粗细 <input id="lw" type="range" min=".8" max="3.5" step=".1" value="1.5"></label>
+<div class="row"><label style="flex-direction:row;gap:6px"><input id="draft" type="checkbox" checked>草稿线</label>
+<label style="flex-direction:row;gap:6px"><input id="boil" type="checkbox">铅笔跳动</label>
+<button id="re">换一笔</button></div>
+</div>
+<h2>人物牌</h2><div id="grid"></div>
+<h2>点数牌 A–10</h2><div class="row suitbar" id="suits"><button data-s="h">♥ 红桃</button><button data-s="d">♦ 方块</button><button data-s="s">♠ 黑桃</button><button data-s="c">♣ 梅花</button></div><div id="pips"></div>
+
+<svg width="0" height="0" style="position:absolute"><defs>
+<filter id="lineF" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence class="n" type="fractalNoise" baseFrequency=".03" numOctaves="2" seed="2" result="n"/><feDisplacementMap class="d" in="SourceGraphic" in2="n" scale="4" xChannelSelector="R" yChannelSelector="G" result="d"/><feTurbulence class="g" type="fractalNoise" baseFrequency=".8 .3" seed="5" result="g"/><feColorMatrix class="m l" in="g" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 3 -.5" result="ga"/><feComposite in="d" in2="ga" operator="in"/></filter>
+<filter id="lineG" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence class="n" type="fractalNoise" baseFrequency=".04" numOctaves="2" seed="9" result="n"/><feDisplacementMap class="d k" in="SourceGraphic" in2="n" scale="4" xChannelSelector="R" yChannelSelector="G" result="d"/><feTurbulence class="g" type="fractalNoise" baseFrequency=".9 .4" seed="11" result="g"/><feColorMatrix class="m l" in="g" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 3 -.5" result="ga"/><feComposite in="d" in2="ga" operator="in"/></filter>
+<filter id="fillF" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence class="n" type="fractalNoise" baseFrequency=".025" numOctaves="2" seed="4" result="n"/><feDisplacementMap class="d f" in="SourceGraphic" in2="n" scale="5" xChannelSelector="R" yChannelSelector="G" result="d"/><feTurbulence class="g" type="fractalNoise" baseFrequency=".6 .12" numOctaves="2" seed="7" result="g"/><feColorMatrix class="m f" in="g" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 4 -1" result="ga"/><feComposite in="d" in2="ga" operator="in"/></filter>
+<filter id="paper"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="3" seed="1"/><feColorMatrix values="0 0 0 0 .5 0 0 0 0 .45 0 0 0 0 .38 0 0 0 .35 -.05"/></filter>
+</defs></svg>
+
+<script>
+const E=(x,y,a,b)=>`M${x-a},${y}a${a},${b} 0 1,0 ${2*a},0a${a},${b} 0 1,0 ${-2*a},0z`;
+const H='#2a2222',S='#fbd9bd';
+const face=(br='M79,65Q86,61 93,64M107,64Q114,61 121,65',nm)=>[[E(100,72,32,28),S],[E(86,77,5.5,7),H],[E(114,77,5.5,7),H],[E(88,74,2.3,2.3),'#fff','f'],[E(116,74,2.3,2.3),'#fff','f'],[E(84,80,1.1,1.1),'#fff','f'],[E(112,80,1.1,1.1),'#fff','f'],[E(74,88,6,4),'#f4a39a','f'],[E(126,88,6,4),'#f4a39a','f'],[br,0,'s'],...(nm?[]:[['M96,89q4,4.5 8,0',0,'s']])];
+const bangs=['M68,72C64,40 88,34 100,34C114,34 136,40 132,72C127,60 120,54 110,56C105,63 96,63 90,56C80,54 73,60 68,72z',H];
+const sides=[['M68,72C58,92 62,114 72,124C76,110 74,92 77,80z',H],['M132,72C142,92 138,114 128,124C124,110 126,92 123,80z',H]];
+const robe=c=>['M70,150C72,118 86,104 100,104C114,104 128,118 130,150z',c];
+const collar=c=>['M90,106L100,126L110,106L105,104L100,112L95,104z',c];
+const sash=c=>['M72,138L128,138L129,147L71,147z',c];
+const Hd=a=>a.map(([d,f,fl])=>[d,f,fl||0,'h']);
+const R=c=>['M66,150L66,112C66,100 80,94 100,94C120,94 134,100 134,112L134,150z',c];
+const bx=Array.from({length:9},(_,i)=>60+i*10);
+const CH={
+J:{col:'#d8433a',suit:'♦',sh:[...Hd([...sides,['M92,36C58,22 40,48 50,82C52,60 66,50 88,46z',H],[E(100,28,10,8),H]]),R('#34508f'),['M86,96L96,96L114,134L106,136z','#fff'],['M114,96L104,96L94,120L98,124z','#fff'],[E(70,102,9,6),'#222a4a'],[E(130,102,9,6),'#222a4a'],['M66,134L134,134L134,143L66,143z','#d8433a'],[E(100,138.5,5,4.5),'#e8b73c'],[E(62,130,6,5),S],...Hd(face('M78,67L93,62M122,67L107,62')),...Hd([bangs,['M68,58C84,50 116,50 132,58L132,64C116,57 84,57 68,64z','#d8433a'],['M92,30L108,30L110,36L90,36z','#3bb5b0']]),['M138,126L138,52L144,36L150,52L150,126z','#e4edf5'],['M144,54L144,122',0,'s'],['M130,126L158,126L158,133L130,133z','#e8b73c'],['M141,133L147,133L147,148L141,148z','#8b2d2d'],['M158,131L161,146L155,144z','#d8433a'],[E(144,140,7,5.5),S]]},
+Q:{col:'#d8433a',suit:'♥',sh:[...Hd([...sides,[E(70,42,12,11),H],[E(130,42,12,11),H]]),['M66,100C52,108 44,126 42,148L64,148L66,112z','#f8c9d0'],['M134,100C148,108 156,126 158,148L136,148L134,112z','#f8c9d0'],R('#e8707a'),['M66,116L134,116L134,150L66,150z','#7fc7a0'],['M90,96L100,112L110,96L105,94L100,102L95,94z','#fff'],['M66,108L134,108L134,116L66,116z','#f1c04a'],['M96,116L92,146L99,140z','#f1c04a'],['M104,116L108,146L101,140z','#f1c04a'],['M84,96C70,100 62,120 60,148L69,148C71,128 78,112 92,104z','#5cc8c0'],['M116,96C130,100 138,120 140,148L131,148C129,128 122,112 108,104z','#5cc8c0'],...Hd(face()),...Hd([bangs,[E(130,38,7,7),'#f58aa5'],[E(130,38,2.6,2.6),'#f1c04a'],['M62,52L67,52L66,84L63,84z','#d8433a'],[E(70,40,3,3),'#e8b73c']]),['M142,138L146,138L146,150L142,150z','#8b5a2b'],[E(144,122,17,17),'#fdf3dc'],[E(144,122,9,9),'#f58aa5'],[E(144,122,3,3),'#f1c04a'],[E(144,142,6,5),S]]},
+K:{col:'#25306b',suit:'♠',sh:[...Hd(sides),R('#f2c230'),['M88,96L100,122L112,96L106,94L100,104L94,94z','#c0392b'],[E(84,124,12,12),'#e8b73c'],[E(84,124,5,5),'#c0392b'],['M66,138L134,138L134,146L66,146z','#8b1f2b'],[E(98,142,2.5,2.5),'#6cc6a0'],['M122,128L148,128L148,150L122,150z','#6cc6a0'],['M129,118L141,118L143,128L127,128z','#4fae88'],[E(122,140,6,5),S],...Hd(face('M77,65L93,64M123,65L107,64',1)),...Hd([['M90,84C94,79 98,84 100,84C102,84 106,79 110,84C106,89 102,86 100,86C98,86 94,89 90,84z',H],['M84,92C86,112 114,112 116,92C110,101 90,101 84,92z',H],['M52,34L148,34L148,42L52,42z','#1f2a5a'],['M72,34L128,34L124,22L76,22z','#e8b73c'],[bx.map(x=>`M${x},42L${x},57`).join(''),0,'s'],...bx.map(x=>[E(x,59,2.4,2.4),'#e8b73c'])])]},
+B:{back:1,sh:[['M16,16H184V284H16z','#3a62b5'],['M100,92C58,138 68,178 100,172C98,188 92,198 84,204H116C108,198 102,188 100,172C132,178 142,138 100,92z','#fdfbf4'],[E(46,60,10,7),'#cfe3fa'],[E(160,60,10,7),'#cfe3fa'],[E(46,244,10,7),'#cfe3fa'],[E(160,244,10,7),'#cfe3fa'],[E(50,150,5,5),'#fff'],[E(150,150,5,5),'#fff'],[E(100,236,6,6),'#fff'],[E(100,50,6,6),'#fff'],['M40,170C34,190 46,205 56,210C60,195 52,182 40,170z','#8fcf86'],['M160,170C166,190 154,205 144,210C140,195 148,182 160,170z','#8fcf86'],['M40,100C34,80 46,70 56,66C60,80 52,92 40,100z','#8fcf86'],['M160,100C166,80 154,70 144,66C140,80 148,92 160,100z','#8fcf86']]}
+};
+const W=(p,h)=>h=='h'?`<g transform="translate(14,6.56) scale(.86)">${p}</g>`:h?`<g transform="${h}">${p}</g>`:p;
+const lay=(sh,mode)=>sh.map(([d,f,fl,h])=>mode=='f'?(fl=='s'?'':W(`<path d="${d}" fill="${f}"/>`,h)):(fl=='f'?'':W(`<path d="${d}"/>`,h))).join('');
+function card(k){
+ const c=CH[k],id='c'+k.replace(/\W/g,'');
+ const idx=c.back?'':['x',1].map((_,i)=>`<g ${i?'transform="rotate(180 100 150)"':''}><text x="22" y="44" font-size="${(c.lab||k).length>1?25:32}" font-weight="700" font-family="Ma Shan Zheng,serif" fill="${c.col}" stroke="none" text-anchor="middle">${c.lab||k}</text><text x="22" y="72" font-size="28" fill="${c.col}" stroke="none" text-anchor="middle">${c.suit}</text></g>`).join('');
+ const dup=c.back||c.pip?'':`<use href="#${id}F" transform="rotate(180 100 150)"/>`, dupL=c.back||c.pip?'':`<use href="#${id}L" transform="rotate(180 100 150)"/>`;
+ const draft=c.back||c.pip?'':`<g class="draft" stroke="#8a8a8a" fill="none" opacity=".4" stroke-width=".7"><circle cx="100" cy="66" r="36"/><path d="M100,22V150M60,66H140M52,150H148"/><path d="M30,160l24,-30m-10,36l24,-30"/></g>`;
+ return `<svg viewBox="0 0 200 300"><defs><g id="${id}F">${lay(c.sh,'f')}</g><g id="${id}L">${lay(c.sh,'l')}</g></defs>
+<rect x="6" y="6" width="188" height="288" fill="#fffdf6"/><rect x="6" y="6" width="188" height="288" filter="url(#paper)"/>
+${draft}
+<g class="fl" filter="url(#fillF)"><use href="#${id}F"/>${dup}</g>
+<g class="ln" filter="url(#lineF)" stroke="#2b2f5a" fill="none" stroke-linejoin="round" stroke-linecap="round">${c.back||c.pip?'':'<path d="M38,150H162M38,14H162V286H38z" stroke-width=".8" opacity=".5"/>'}<use href="#${id}L"/>${dupL}${idx}</g>
+<rect x="6" y="6" width="188" height="288" fill="none" stroke="#2b2f5a" stroke-width="2"/>
+<g class="ln" filter="url(#lineG)" stroke="#2b2f5a" fill="none" stroke-linejoin="round" stroke-linecap="round" opacity=".3"><use href="#${id}L" transform="translate(.9,.7)"/>${dupL?dupL.replace('rotate(180 100 150)','translate(.9,.7) rotate(180 100 150)'):''}</g></svg>`;
+}
+document.getElementById('grid').innerHTML=['J','Q','K','B'].map(card).join('');
+const $=i=>document.getElementById(i),q=s=>[...document.querySelectorAll(s)];
+function apply(){
+ const r=+$('rough').value,g=+$('gap').value,m=+$('mis').value,lw=$('lw').value;
+ q('.d').forEach(e=>e.setAttribute('scale',e.classList.contains('f')?r*1.4+1:r));
+ q('.m.l').forEach(e=>e.setAttribute('values',`0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 3 ${-.3-.5*g}`));
+ q('.m.f').forEach(e=>e.setAttribute('values',`0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 4 ${-.5-.8*g}`));
+ q('.fl').forEach(e=>e.style.transform=`translate(${m}px,${m*.8}px)`);
+ q('.ln').forEach(e=>e.setAttribute('stroke-width',lw));
+ q('.draft').forEach(e=>e.style.display=$('draft').checked?'':'none');
+}
+function reseed(){q('feTurbulence').forEach(e=>e.setAttribute('seed',1+Math.floor(Math.random()*90)))}
+['rough','mis','gap','lw','draft'].forEach(i=>$(i).oninput=apply);
+$('re').onclick=reseed;
+let t;$('boil').onchange=e=>{clearInterval(t);if(e.target.checked)t=setInterval(()=>{q('.n').forEach(n=>n.setAttribute('seed',1+Math.floor(Math.random()*90)))},180)};
+apply();
+
+const SPATH={h:'M0,10C-14,0 -16,-12 -8,-14C-3,-15 0,-10 0,-8C0,-10 3,-15 8,-14C16,-12 14,0 0,10z',d:'M0,-15L11,0L0,15L-11,0z',s:'M0,-14C-16,-2 -14,8 -6,8C-3,8 -1,6 0,4C0,10 -2,13 -6,14L6,14C2,13 0,10 0,4C1,6 3,8 6,8C14,8 16,-2 0,-14z',c:E(0,-7,6,6)+E(-7,3,6,6)+E(7,3,6,6)+'M0,2L-3,14L3,14z'};
+const SU={h:['♥','#d8433a'],d:['♦','#d8433a'],s:['♠','#25306b'],c:['♣','#25306b']};
+const four=[62,238].flatMap(y=>[62,138].map(x=>[x,y])),six=[62,150,238].flatMap(y=>[62,138].map(x=>[x,y])),eight=[62,118,182,238].flatMap(y=>[62,138].map(x=>[x,y]));
+const LY={A:[[100,150]],2:[[100,62],[100,238]],3:[[100,62],[100,150],[100,238]],4:four,5:[...four,[100,150]],6:six,7:[...six,[100,106]],8:[...six,[100,106],[100,194]],9:[...eight,[100,150]],10:[...eight,[100,90],[100,210]]};
+function mk(r,su){const [sym,col]=SU[su],sh=[];
+ if(r=='A')[[48,66],[152,66],[48,234],[152,234]].forEach(([x,y])=>sh.push([E(x,y,14,8),'#cfe3fa','f']));
+ LY[r].forEach(([x,y],i)=>{const rot=(y>150?180:0)+((i*53+7)%9-4),sc=(r=='A'?3.6:1.5)*(1+((i*29)%5-2)*.03);sh.push([SPATH[su],col,'',`translate(${x} ${y}) rotate(${rot}) scale(${sc})`])});
+ CH[r+su]={col,suit:sym,pip:1,lab:String(r),sh};return r+su}
+function pips(su){q('#suits button').forEach(b=>b.classList.toggle('on',b.dataset.s==su));
+ $('pips').innerHTML=['A',2,3,4,5,6,7,8,9,10].map(r=>card(mk(r,su))).join('');apply()}
+q('#suits button').forEach(b=>b.onclick=()=>pips(b.dataset.s));
+pips('h');
+</script></body></html>

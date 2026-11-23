@@ -1,0 +1,226 @@
+/* Continuous paper UI. Historical themes and all Canvas stimulus pixels stay separate. */
+:root[data-presentation="crayon-paper-v1"] {
+  --color-text-secondary:#40557A; --color-text-weak:#71809C; --color-primary-hover:#244B88;
+  --color-border-strong:#8A9DBB; --color-success:#25745F; --color-warning:#95611C; --color-disabled:#DFE5EE;
+  --font-title:"KaiTi","STKaiti","Microsoft YaHei",serif;
+  --shadow-card:none; --shadow-panel:0 10px 40px rgba(23,53,107,.09);
+  --paper-divider:rgba(23,53,107,.12); --paper-hover:rgba(23,53,107,.045);
+}
+html[data-presentation="crayon-paper-v1"] :is(body,.shell,.intro-flip__scene) { background-color:var(--theme-bg); background-image:url("/textures/crayon-paper.svg"); }
+html[data-presentation="crayon-paper-v1"] :is(button,h1,h2,h3,h4,.game-control-label,.themed-dropdown__label) { font-family:var(--font-title); font-weight:700; }
+html[data-presentation="crayon-paper-v1"] button { border:0; border-radius:0; box-shadow:none; text-decoration:none; background:transparent; color:var(--theme-ink); transition:color 180ms ease,background-color 180ms ease; }
+html[data-presentation="crayon-paper-v1"] button.secondary { background:transparent; color:var(--theme-ink); }
+html[data-presentation="crayon-paper-v1"] button:hover:enabled { color:var(--theme-accent); background:transparent; text-decoration:none; }
+html[data-presentation="crayon-paper-v1"] button:active:enabled { background:var(--paper-hover); }
+html[data-presentation="crayon-paper-v1"] button:disabled { background:transparent; color:var(--color-text-muted); opacity:.5; }
+html[data-presentation="crayon-paper-v1"] :is(.paper-primary,.challenge-dialog-actions button:not(.secondary),.game-result-actions button:not(.secondary),.operation-round-results footer button:not(.secondary)) {
+  background:var(--theme-ink) url("/textures/crayon-strokes.svg"); color:#fff; border-radius:3px 7px 4px 6px; padding-inline:20px;
+}
+html[data-presentation="crayon-paper-v1"] :is(.paper-primary,.challenge-dialog-actions button:not(.secondary),.game-result-actions button:not(.secondary),.operation-round-results footer button:not(.secondary)):hover:enabled { background-color:var(--color-primary-hover); color:#fff; }
+html[data-presentation="crayon-paper-v1"] :is(.paper-primary,.challenge-dialog-actions button:not(.secondary),.game-result-actions button:not(.secondary),.operation-round-results footer button:not(.secondary)):disabled { background-color:var(--color-disabled); color:var(--color-text-muted); opacity:.7; }
+html[data-presentation="crayon-paper-v1"] .paper-stop { color:var(--color-danger); font-weight:700; }
+html[data-presentation="crayon-paper-v1"] .paper-stop::before { content:"■"; margin-right:7px; font-size:.7em; }
+html[data-presentation="crayon-paper-v1"] :is(button,summary,a):focus-visible { outline:none; text-decoration:underline; text-decoration-color:var(--theme-ink); text-underline-offset:6px; }
+html[data-presentation="crayon-paper-v1"] :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),select,textarea) {
+  border:0; border-bottom:1px solid var(--paper-divider); border-radius:0; background:transparent; box-shadow:none; color:var(--theme-ink); accent-color:var(--theme-accent);
+}
+html[data-presentation="crayon-paper-v1"] :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),select,textarea):focus { outline:none; border-bottom-color:var(--theme-ink); box-shadow:0 1px 0 var(--theme-ink); }
+
+html[data-presentation="crayon-paper-v1"] :is(input[type="checkbox"],input[type="radio"]) { accent-color:var(--theme-ink); }
+/* Remove nested surfaces, retaining their layout and scrolling responsibilities. */
+html[data-presentation="crayon-paper-v1"] .shell :is(
+  .card,.experiment-card,.teaching-panel,.signal-inspector,.challenge-panel,.chart-card,.sim-analysis-panel,.game-panel,.sim-analysis-chart-card,
+  .lab-workspace-nav,.lab-device-toolbar,.analysis-collapsible,.real-eeg-filter-switch,.teaching-course-workspace,.teaching-run-workspace,
+  .teaching-observe-workspace,.teaching-lesson,.teaching-interactive,.teaching-quiz,.teaching-principle-feedback,.metric-card,
+  .real-eeg-analysis,.teaching-run-side,.principle-demo-analysis,.demo-cca,.demo-cca-row,.demo-classification-result,
+  .teaching-panel .training-top,.teaching-panel .teaching-settings-details,.teaching-panel .teaching-settings,
+  .teaching-panel .teaching-switch,.teaching-panel .teaching-workspace-nav,.teaching-panel .teaching-segmented,
+  .experiment-toolbar,.calibration-bar,.teaching-toolbar,.teaching-actions,.teaching-metrics,.teaching-course-nav,
+  .teaching-analysis-source-switch,.analysis-summary > div,.sim-analysis-snr,.operation-feedback,.operation-stage-notice,.round-result-entry
+) { border:0; border-radius:0; box-shadow:none; background:transparent; }
+html[data-presentation="crayon-paper-v1"] .shell .teaching-panel { --teaching-bg-page:transparent; --teaching-bg-surface:transparent; --teaching-bg-tabs:transparent; --teaching-divider:transparent; }
+html[data-presentation="crayon-paper-v1"] :is(.game-modal,.challenge-entry-modal,.challenge-dialog,.operation-round-results) { border:0; border-radius:24px; background:var(--theme-bg) url("/textures/crayon-paper.svg"); box-shadow:var(--shadow-panel); padding:clamp(22px,3vw,40px); }
+html[data-presentation="crayon-paper-v1"] .game-modal:focus:not(:focus-visible) { outline:none; }
+html[data-presentation="crayon-paper-v1"] .game-countdown { border:0; border-radius:0; box-shadow:none; background:var(--theme-bg); }
+html[data-presentation="crayon-paper-v1"] .game-countdown { background:transparent; }
+html[data-presentation="crayon-paper-v1"] .game-table-results { inset:116px 0 0; transform:none; width:100%; max-height:none; border:0; border-radius:0; box-shadow:none; background:var(--theme-bg) url("/textures/crayon-paper.svg"); padding:24px clamp(20px,7vw,130px); }
+html[data-presentation="crayon-paper-v1"] .operation-round-results { max-height:calc(100% - 24px); overflow:auto; }
+html[data-presentation="crayon-paper-v1"] :is(.game-results-grid,.challenge-metrics) { gap:20px; padding-block:10px; }
+html[data-presentation="crayon-paper-v1"] :is(.game-results-grid,.challenge-metrics) strong { font-weight:600; }
+html[data-presentation="crayon-paper-v1"] .app-header { border-bottom-color:transparent; }
+html[data-presentation="crayon-paper-v1"] .app-header h1 { color:var(--theme-ink); }
+html[data-presentation="crayon-paper-v1"] .shell .teaching-segmented__indicator { display:block; top:auto; bottom:0; left:0; height:3px; border:0; border-radius:0; background:var(--theme-ink); width:calc(100% / var(--segment-count,3)); inset-inline-start:0; pointer-events:none; }
+html[data-presentation="crayon-paper-v1"] .app-header { --nav-muted-ink: #596e8a; --nav-current-ink: #152e61; }
+html[data-presentation="crayon-paper-v1"] .shell .teaching-segmented { padding:0; }
+html[data-presentation="crayon-paper-v1"] .shell :is(.view-nav,.teaching-segmented) button:focus-visible { outline:none; text-decoration:underline; text-decoration-style:dashed; text-underline-offset:7px; }
+html[data-presentation="crayon-paper-v1"] .status-badge { border:0; border-radius:0; background:transparent; box-shadow:none; display:inline-flex; align-items:center; gap:5px; }
+html[data-presentation="crayon-paper-v1"] .status-badge::before { content:""; width:6px; height:6px; flex:0 0 6px; border-radius:50%; background:var(--color-text-weak); }
+html[data-presentation="crayon-paper-v1"] :is(.status-badge.online,.status-badge--success)::before { background:var(--color-success); }
+html[data-presentation="crayon-paper-v1"] .status-badge--warning::before { background:var(--color-warning); }
+html[data-presentation="crayon-paper-v1"] .status-badge--danger::before { background:var(--color-danger); }
+html[data-presentation="crayon-paper-v1"] .shell :is(.status-badge,.training-chip,.data-source-badge,.sim-analysis-seed,.demo-cca-rank,.operation-stage-notice__phase) { background:transparent; border:0; border-radius:0; box-shadow:none; }
+html[data-presentation="crayon-paper-v1"] .data-source-badge { padding-inline:0; }
+html[data-presentation="crayon-paper-v1"] .themed-dropdown .themed-dropdown__trigger { border:0; border-radius:0; background:transparent; gap:8px; }
+html[data-presentation="crayon-paper-v1"] .themed-dropdown .themed-dropdown__trigger:hover:enabled { background:transparent; color:var(--theme-accent); }
+html[data-presentation="crayon-paper-v1"] .themed-dropdown__menu { border:0; box-shadow:var(--shadow-panel); border-radius:3px; background:var(--theme-bg); }
+html[data-presentation="crayon-paper-v1"] .themed-dropdown__menu .themed-dropdown__option { border:0; border-radius:0; background:transparent; color:var(--theme-ink); }
+html[data-presentation="crayon-paper-v1"] .themed-dropdown__menu .themed-dropdown__option:hover { background:var(--paper-hover); }
+html[data-presentation="crayon-paper-v1"] .themed-dropdown__menu .themed-dropdown__option[aria-selected="true"] { color:var(--theme-ink); background:transparent; }
+html[data-presentation="crayon-paper-v1"] .themed-dropdown .themed-dropdown__trigger:focus-visible,
+html[data-presentation="crayon-paper-v1"] .themed-dropdown__menu .themed-dropdown__option:focus-visible { outline:none; text-decoration:underline; text-underline-offset:6px; }
+html[data-presentation="crayon-paper-v1"] .game-table-card { border:0; border-radius:0; box-shadow:none; }
+html[data-presentation="crayon-paper-v1"] .shell--game .game-console--setup { padding-top:0; }
+/* Reserve both rows even while folded; expanded options stay above the canvas. */
+.game-settings-fold { position:relative; width:clamp(350px,38vw,460px); flex:0 0 auto; align-self:flex-start; transform:translateY(-6px); z-index:5; }
+.game-settings-fold__paper { position:relative; width:max-content; border-radius:0; }
+.game-settings-fold__group { display:flex; align-items:center; width:max-content; }
+.game-settings-fold__group.is-open { background:var(--theme-bg) url("/textures/crayon-paper.svg"); }
+html[data-presentation="crayon-paper-v1"] .game-settings-fold__trigger { display:grid; grid-template-columns:42px max-content 16px; align-items:center; gap:6px; width:auto; flex-shrink:0; min-height:30px; padding:2px 6px; text-align:left; font-size:16px; white-space:nowrap; }
+html[data-presentation="crayon-paper-v1"] .game-settings-fold button:hover:enabled { color:var(--theme-ink); background:transparent; text-decoration:none; }
+.game-settings-fold__trigger .game-control-label { font-weight:400; }
+.game-settings-fold__trigger svg { width:16px; height:16px; fill:none; stroke:currentColor; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round; transition:transform 420ms cubic-bezier(.2,.7,.2,1); }
+.game-settings-fold__trigger[aria-expanded="true"] svg { transform:rotate(180deg); }
+.game-settings-fold__reveal { display:grid; grid-template-columns:0fr; opacity:0; transition:grid-template-columns 420ms cubic-bezier(.2,.7,.2,1),opacity 360ms ease; }
+.game-settings-fold__reveal.is-open { grid-template-columns:1fr; opacity:1; }
+.game-settings-fold__clip { min-width:0; overflow:hidden; }
+.game-settings-fold__options { display:flex; align-items:center; gap:8px; width:max-content; padding:0 8px; white-space:nowrap; transform:translateX(-8px); transition:transform 420ms cubic-bezier(.2,.7,.2,1); }
+.game-settings-fold__reveal.is-open .game-settings-fold__options { transform:translateX(0); }
+.game-settings-fold .paper-choice { position:relative; min-height:28px; padding:3px 8px; font-size:15px; }
+.paper-action-icon { width:21px; height:21px; flex:0 0 21px; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
+html[data-presentation="crayon-paper-v1"] .paper-choice { color:var(--color-text-muted); background:transparent; }
+html[data-presentation="crayon-paper-v1"] .paper-choice[aria-pressed="true"] { color:var(--theme-ink); }
+html[data-presentation="crayon-paper-v1"] .paper-choice[aria-pressed="true"]::after { content:""; position:absolute; left:9px; right:9px; bottom:1px; height:3px; background:var(--theme-ink) url("/textures/crayon-strokes.svg"); border-radius:35% 20% 40% 25%; }
+html[data-presentation="crayon-paper-v1"] .game-console__actions button { display:inline-flex; align-items:center; justify-content:center; gap:7px; background:transparent; padding-inline:9px; }
+html[data-presentation="crayon-paper-v1"] .game-start-action { position:relative; isolation:isolate; }
+html[data-presentation="crayon-paper-v1"] .game-start-action button {
+  border:0; outline:none; border-radius:4px 9px 5px 7px / 6px 4px 8px 3px; background:var(--theme-ink) url("/textures/crayon-strokes.svg"); color:#fff; box-shadow:none; font-size:21px;
+  clip-path:polygon(1% 9%,7% 5%,19% 7%,31% 3%,45% 5%,60% 2%,76% 6%,92% 3%,99% 8%,98% 30%,100% 57%,98% 88%,88% 96%,74% 93%,58% 98%,43% 94%,27% 97%,13% 93%,2% 96%,0% 68%,2% 41%);
+}
+html[data-presentation="crayon-paper-v1"] .game-start-action button:hover:enabled { background-color:var(--color-primary-hover); color:#fff; }
+html[data-presentation="crayon-paper-v1"] .game-start-action button:focus-visible { text-decoration:underline; text-underline-offset:6px; }
+html[data-presentation="crayon-paper-v1"] .game-start-action button:disabled { background-color:var(--color-disabled); color:var(--color-text-muted); }
+html[data-presentation="crayon-paper-v1"] .game-start-action::before,
+html[data-presentation="crayon-paper-v1"] .game-start-action::after { content:""; position:absolute; bottom:0; width:145px; height:65px; pointer-events:none; z-index:-1; background-position:center; background-size:contain; background-repeat:no-repeat; }
+html[data-presentation="crayon-paper-v1"] .game-start-action::before { left:8px; background-image:url("/textures/crayon-doodles.svg"); }
+html[data-presentation="crayon-paper-v1"] .game-start-action::after { right:8px; background-image:url("/textures/crayon-flight.svg"); }
+html[data-presentation="crayon-paper-v1"] .game-focus :is(.game-hud-pill,.game-exit) { border:0; background:transparent; box-shadow:none; }
+html[data-presentation="crayon-paper-v1"] .game-round-progress__number strong { font-family:"Segoe Print",cursive; font-weight:700; }
+html[data-presentation="crayon-paper-v1"] .game-round-dots i { border-width:2px; border-color:var(--color-border-strong); }
+/* Flat controls for analysis workspaces and challenge pages. */
+html[data-presentation="crayon-paper-v1"] :is(
+  .shell:is(.shell--teaching-observe,.shell--teaching-run) .teaching-segmented button,
+  .challenge-nav button,.shell .real-eeg-filter-switch button,
+  .shell .teaching-analysis-source-switch button
+) { position:relative; background:transparent; border:0; box-shadow:none; border-radius:0; color:var(--color-text-secondary); text-decoration:none; }
+html[data-presentation="crayon-paper-v1"] :is(
+  .shell:is(.shell--teaching-observe,.shell--teaching-run) .teaching-segmented button,
+  .challenge-nav button,.shell .real-eeg-filter-switch button,
+  .shell .teaching-analysis-source-switch button
+):is([aria-current="page"],[aria-pressed="true"]) { color:var(--theme-ink); background:transparent; }
+html[data-presentation="crayon-paper-v1"] #teaching-observe-workspace .real-eeg-filter-switch {
+  gap: 3px;
+  padding: 3px;
+  background: #e6ecf4;
+  border-radius: 8px;
+}
+html[data-presentation="crayon-paper-v1"] #teaching-observe-workspace .real-eeg-filter-switch button {
+  min-height: 34px;
+  padding: 3px 10px;
+  background: transparent;
+  border-radius: 5px;
+  color: var(--color-text-secondary);
+  text-decoration: none;
+}
+html[data-presentation="crayon-paper-v1"] #teaching-observe-workspace .real-eeg-filter-switch button[aria-pressed="true"] {
+  background: var(--theme-ink);
+  color: #fff;
+}
+html[data-presentation="crayon-paper-v1"] #teaching-observe-workspace .real-eeg-filter-switch button[aria-pressed="false"]:hover:enabled {
+  background: var(--paper-hover);
+}
+html[data-presentation="crayon-paper-v1"] #teaching-observe-workspace .real-eeg-filter-switch button::after {
+  content: none;
+}
+html[data-presentation="crayon-paper-v1"] #teaching-observe-workspace .real-eeg-filter-switch button:focus-visible {
+  outline: 2px solid var(--theme-ink);
+  outline-offset: 1px;
+}
+/* Current pages use an ink stroke. Only inner-page choices gain a hover stroke. */
+html[data-presentation="crayon-paper-v1"] :is(.view-nav,.challenge-nav,.real-eeg-filter-switch,.teaching-analysis-source-switch) button { position:relative; }
+html[data-presentation="crayon-paper-v1"] :is(.challenge-nav,.real-eeg-filter-switch,.teaching-analysis-source-switch) button:is([aria-current="page"],[aria-current="step"],[aria-pressed="true"])::after,
+html[data-presentation="crayon-paper-v1"] :is(.challenge-nav,.real-eeg-filter-switch,.teaching-analysis-source-switch) button:not([aria-current]):hover:enabled::after {
+  content:""; position:absolute; left:8px; right:8px; bottom:2px; height:2px; border-radius:0; background:var(--theme-ink) url("/textures/crayon-strokes.svg"); pointer-events:none;
+}
+html[data-presentation="crayon-paper-v1"] :is(.challenge-nav,.shell .real-eeg-filter-switch,.shell .teaching-analysis-source-switch) button:hover:enabled { color:var(--theme-ink); background:transparent; }
+html[data-presentation="crayon-paper-v1"] .themed-dropdown__menu:not(.themed-dropdown--course) .themed-dropdown__option:is(:hover,[aria-selected="true"]) .themed-dropdown__option-label,
+html[data-presentation="crayon-paper-v1"] .shell :is(.teaching-flow__steps,.teaching-frequency-pick,.teaching-feedback-tabs,.source-practice__choices,.teaching-noise-lab__scenarios) button:where(:not(.teaching-wave-controls > button)):is(:hover:enabled,[aria-pressed="true"]) {
+  color:var(--theme-ink); text-decoration:underline; text-decoration-color:var(--theme-ink); text-decoration-thickness:2px; text-underline-offset:6px;
+}
+html[data-presentation="crayon-paper-v1"] .shell :is(.teaching-callout,.teaching-quiz-feedback) { background:transparent; border:0; padding:8px 0; }
+html[data-presentation="crayon-paper-v1"] .shell :is(.teaching-flow__steps,.teaching-frequency-pick,.teaching-feedback-tabs,.source-practice__choices) button { background:transparent; color:var(--color-text-secondary); border:0; }
+html[data-presentation="crayon-paper-v1"] .shell :is(.teaching-flow__steps,.teaching-frequency-pick,.teaching-feedback-tabs,.source-practice__choices) button[aria-pressed="true"] { color:var(--theme-ink); }
+html[data-presentation="crayon-paper-v1"] .shell .teaching-noise-lab__scenarios button { background:transparent; padding:10px 0; text-align:left; }
+html[data-presentation="crayon-paper-v1"] .shell .teaching-lesson__navigation button { color:var(--theme-ink); background:transparent; }
+/* Analysis values stay tabular, figures keep their units, axes and traces. */
+html[data-presentation="crayon-paper-v1"] .shell :is(.sim-analysis-chart,.waveform,.real-eeg-empty-chart) { border-radius:0; }
+html[data-presentation="crayon-paper-v1"] .shell .demo-cca-row { padding:7px 0; }
+html[data-presentation="crayon-paper-v1"] .shell .demo-cca .demo-classification-result { background:transparent; border:0; padding:10px 0; }
+html[data-presentation="crayon-paper-v1"] .shell .operation-round-results .round-result-row { background:transparent; color:var(--theme-ink); border:0; }
+html[data-presentation="crayon-paper-v1"] .shell .round-result-entry + .round-result-entry { border-top:1px solid var(--paper-divider); }
+html[data-presentation="crayon-paper-v1"] .shell :is(.analysis-collapsible,.lab-log-summary) > summary { cursor:pointer; color:var(--theme-ink); padding:8px 0; }
+/* Device facts and commands share the page; advanced details remain collapsible. */
+html[data-presentation="crayon-paper-v1"] .shell--lab .lab-device-main { gap:clamp(24px,5vw,80px); }
+html[data-presentation="crayon-paper-v1"] .shell--lab .lab-device-main .card { padding:20px 0; }
+html[data-presentation="crayon-paper-v1"] .shell--lab .lab-device-toolbar { padding:14px 0; margin-block:8px 20px; }
+html[data-presentation="crayon-paper-v1"] .shell--lab .lab-device-main dl div { border:0; padding:12px 0; }
+html[data-presentation="crayon-paper-v1"] .shell--lab .lab-log-summary { padding:12px 0; border-top:1px solid var(--paper-divider); }
+html[data-presentation="crayon-paper-v1"] .shell :is(.stimulus-note,.calibration-bar,.timing-diagnostic-note) { background:transparent; }
+/* Compact ranking dialog; content scrolls inside the rounded paper surface. */
+html[data-presentation="crayon-paper-v1"] .challenge-dialog--wide { width:min(1120px,calc(100vw - 48px)); max-width:1120px; height:fit-content; max-height:calc(100dvh - 144px); margin:auto; border-radius:24px; box-shadow:var(--shadow-panel); padding:24px 28px; overflow:hidden; }
+html[data-presentation="crayon-paper-v1"] .challenge-hub-body { min-height:0; overflow-y:auto; overscroll-behavior:contain; scrollbar-gutter:stable; padding:0 8px 20px 2px; }
+html[data-presentation="crayon-paper-v1"] .challenge-page-topbar { padding:0 0 16px; }
+html[data-presentation="crayon-paper-v1"] .challenge-page-back { min-height:36px; padding:4px 2px; font-size:16px; }
+html[data-presentation="crayon-paper-v1"] .challenge-list-heading, html[data-presentation="crayon-paper-v1"] .challenge-leaderboard > .challenge-explanation { border-color:var(--paper-divider); }
+html[data-presentation="crayon-paper-v1"] .challenge-hub { max-width:1120px; max-height:calc(100dvh - 192px); margin:auto; display:flex; flex-direction:column; }
+html[data-presentation="crayon-paper-v1"] .challenge-board-heading { margin-bottom:24px; align-items:center; }
+html[data-presentation="crayon-paper-v1"] .challenge-board-heading h2 { font-size:28px; }
+html[data-presentation="crayon-paper-v1"] :is(.challenge-entry-tools,.challenge-board-tools) button { background:transparent; color:var(--theme-ink); border:0; box-shadow:none; }
+html[data-presentation="crayon-paper-v1"] :is(.challenge-entry-tools,.challenge-board-tools) button:hover:enabled { color:var(--theme-accent); background:transparent; }
+html[data-presentation="crayon-paper-v1"] .challenge-nav { gap:clamp(20px,2.4vw,32px); }
+html[data-presentation="crayon-paper-v1"] .challenge-nav button { padding:8px 0 14px; font-size:18px; }
+html[data-presentation="crayon-paper-v1"] .challenge-table :is(th,td) { border:0; padding-block:16px; }
+html[data-presentation="crayon-paper-v1"] .challenge-table thead { border-bottom:1px solid var(--paper-divider); color:var(--color-text-muted); }
+html[data-presentation="crayon-paper-v1"] .challenge-table tbody > tr + tr { border-top:1px solid var(--paper-divider); }
+html[data-presentation="crayon-paper-v1"] .challenge-table tr.is-current { background:transparent; }
+html[data-presentation="crayon-paper-v1"] .challenge-table tr.is-current > :is(td:first-child,th) { color:var(--theme-accent); }
+html[data-presentation="crayon-paper-v1"] .challenge-results .game-result-actions { background:var(--theme-bg); }
+/* Notices carry a visible symbol and text; recovery controls remain accessible. */
+html[data-presentation="crayon-paper-v1"] :is(.error,.challenge-entry-error,.challenge-save-error,.mode-warning-inline,.sim-analysis-input-error) { border:0; border-radius:0; box-shadow:none; background:transparent; padding:10px 0; color:var(--color-danger); }
+html[data-presentation="crayon-paper-v1"] :is(.error,.challenge-entry-error,.challenge-save-error,.sim-analysis-input-error)::before { content:"!"; display:inline-grid; place-items:center; border:1px solid currentColor; border-radius:50%; width:18px; height:18px; margin-right:8px; font-size:13px; font-weight:700; }
+html[data-presentation="crayon-paper-v1"] .challenge-save-error { z-index:60; padding:18px 22px; background:var(--theme-bg); box-shadow:var(--shadow-panel); }
+html[data-presentation="crayon-paper-v1"] :is(.ui-tooltip-content,.training-toast) { border:0; border-radius:3px; background:var(--theme-bg); box-shadow:var(--shadow-panel); }
+html[data-presentation="crayon-paper-v1"] .intro-flip__face { box-shadow:2px 4px 0 rgba(23,53,107,.12); }
+@media (max-width:1050px) {
+  .shell--game .game-console--setup { gap:8px; padding-inline:4px; }
+  .game-settings-fold .paper-choice { font-size:14px; }
+  html[data-presentation="crayon-paper-v1"] .game-console__actions { gap:3px; }
+  html[data-presentation="crayon-paper-v1"] .game-start-action::before,
+  html[data-presentation="crayon-paper-v1"] .game-start-action::after { width:105px; height:53px; }
+}
+/* More readable controls on full-size desktop windows; compact windows retain their fit. */
+@media (min-width:1100px) and (min-height:750px) {
+  html[data-presentation="crayon-paper-v1"] .shell .app-header .status-badge { font-size:14px; }
+  html[data-presentation="crayon-paper-v1"] .game-settings-fold .paper-choice,
+  html[data-presentation="crayon-paper-v1"] .game-console__actions button { font-size:20px; min-height:44px; }
+  html[data-presentation="crayon-paper-v1"] :is(.game-control-label,.game-setup-status) { font-size:16px; }
+  html[data-presentation="crayon-paper-v1"] .game-settings-fold__trigger { min-height:40px; font-size:20px; }
+  html[data-presentation="crayon-paper-v1"] .game-settings-fold .paper-choice { min-height:36px; }
+  html[data-presentation="crayon-paper-v1"] .paper-action-icon { width:24px; height:24px; flex-basis:24px; }
+  html[data-presentation="crayon-paper-v1"] .game-start-action button { min-width:230px; min-height:60px; font-size:24px; }
+  html[data-presentation="crayon-paper-v1"] :is(.game-hud-pill,.game-exit) { font-size:18px; }
+  html[data-presentation="crayon-paper-v1"] .game-focus-overlay:not(.game-focus-overlay--bottom) .game-focus-stage { font-size:18px; }
+}
+@media (prefers-reduced-motion:reduce) {
+  html[data-presentation="crayon-paper-v1"] button { transition:none; }
+  .game-settings-fold__reveal,.game-settings-fold__options,.game-settings-fold__trigger svg { transition:none; }
+}

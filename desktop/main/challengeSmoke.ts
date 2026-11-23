@@ -54,7 +54,7 @@ export async function runChallengeSmoke(window: BrowserWindow, directory: string
     await until("![...document.querySelectorAll('button')].find(b => b.textContent.trim() === '下一步').disabled", "身份表单可提交");
     await click("排行榜");
     await until("!!document.querySelector('dialog[open] .challenge-leaderboard') && document.querySelectorAll('dialog[open]').length === 1", "弹窗内打开排行榜且不叠加遮罩");
-    await click("关闭");
+    await click("返回");
     await until("document.querySelector('dialog[open] input[name=studentId]')?.value === '000123' && document.querySelector('dialog[open] input[name=participantName]')?.value === '模拟验收同学'", "关闭排行榜后保留身份输入");
     await click("下一步");
     await until("document.querySelector('#challenge-entry-title')?.textContent === '挑战规则' && !document.querySelector('dialog[open] input')", "填写身份后显示简短规则");
@@ -83,6 +83,8 @@ export async function runChallengeSmoke(window: BrowserWindow, directory: string
     const records = await evaluate<any[]>("window.brainGameDesktop.listChallenges().then(x => x.records)");
     const completed = records.find(r => r.status === "completed");
     if (!completed || completed.studentId !== "000123" || completed.rounds.length !== 30 || completed.rounds.some((r: any) => r.attempts.filter((a: any) => ["correct", "incorrect", "rejected"].includes(a.outcome)).length !== 1)) throw new Error("完整记录或拒识不重试验收失败");
+    if (JSON.parse(completed.configuration.classifier).profile !== "butterworth-trial-v1") throw new Error("挑战未记录Butterworth试用识别配置");
+    checks.push("挑战固定并保存Butterworth试用配置");
     report.challengeId = completed.id; report.completedRounds = completed.rounds.length;
     report.outcomes = completed.rounds.flatMap((r: any) => r.attempts).reduce((counts: any, a: any) => ({ ...counts, [a.outcome]: (counts[a.outcome] ?? 0) + 1 }), {});
     await click("返回首页");
@@ -102,11 +104,47 @@ export async function runChallengeSmoke(window: BrowserWindow, directory: string
     await click("三关挑战"); await click("排行榜"); await until("document.querySelectorAll('.challenge-leaderboard > .challenge-table-scroll tbody tr').length === 1", "重启后完整成绩仍存在");
     const alerts = await evaluate<string[]>("[...document.querySelectorAll('[role=alert]')].map(x => x.textContent)");
     if (alerts.length) throw new Error(`界面错误：${alerts.join(';')}`);
-    await click("关闭"); await click("取消"); await click("开始游戏");
+    await click("返回"); await click("取消"); await click("开始游戏");
     await until("!!document.querySelector('.game-rules-modal')", "自由游戏规则入口");
     await evaluate("[...document.querySelectorAll('.game-rules-modal button')].find(b => b.textContent === '开始本局').click()");
     await until("document.querySelector('#game-results-title')?.textContent === '本局完成'", "自由游戏拒识仍完成10轮");
     await until("window.brainGameDesktop.listChallenges().then(x => x.records.length === 1)", "自由游戏不写入排名记录");
+    await click("返回设置");
+    await until("!!document.querySelector('.game-console__primary')", "自由游戏返回牌桌");
+    const legacyId = await evaluate<string>(`(async () => {
+      const source = (await window.brainGameDesktop.listChallenges()).records[0];
+      const record = structuredClone(source), stimulus = JSON.parse(record.configuration.stimulus);
+      delete stimulus.presentationVersion;
+      delete stimulus.rasterQuality;
+      delete stimulus.cardSetVersion;
+      delete stimulus.gameSizeProfile;
+      const c = JSON.parse(record.configuration.classifier);
+      record.configuration.classifier = JSON.stringify({name:"fbcca-cca",version:"0.3.0",policy:"labelled-validation-pending-v1",leads:c.leads,
+        source:c.source,sampleRateHz:c.sampleRateHz,windowSeconds:c.windowSeconds,filter:"continuous-fir",warmup:256,hopSeconds:.25,harmonics:3,
+        filterBandsHz:[[6,45],[14,45]],filterLength:257,policies:[2,4,6].map(()=>({confidenceThreshold:.52,marginThreshold:.08,requiredVotes:2,validated:false})),stimulusMs:c.stimulusMs,graceMs:c.graceMs});
+      record.id = crypto.randomUUID(); record.revision = 0; record.studentId = '000456'; record.name = '模拟旧版同学';
+      record.status = 'paused'; record.rounds = []; record.restUntil = 0; record.completedAt = null;
+      record.createdAt = record.updatedAt = new Date().toISOString(); record.configuration.stimulus = JSON.stringify(stimulus);
+      await window.brainGameDesktop.createChallenge(record); return record.id;
+    })()`);
+    window.webContents.reload();
+    await until("!!document.querySelector('.game-console__challenge:not(:disabled)')", "重启后读取旧版未完成挑战");
+    await click("三关挑战");
+    await until("!![...document.querySelectorAll('dialog[open] button')].find(b => b.textContent === '继续挑战' && !b.disabled)", "旧版续玩入口等待本地记录加载");
+    await click("继续挑战");
+    await until("!!document.querySelector('dialog[open] .challenge-resume button:not(:disabled)')", "旧版未完成挑战可以续玩");
+    await click("继续");
+    await until("document.querySelector('.game-table-frame')?.dataset.presentation === 'legacy-green-v1'", "旧挑战恢复旧版绿色呈现");
+    await until("document.querySelector('.game-table-frame')?.dataset.classifier === 'fir-baseline-v1'", "旧挑战恢复原FIR识别方案");
+    await capture("legacy-resume-960");
+    await until(`window.brainGameDesktop.getChallenge(${JSON.stringify(legacyId)}).then(r => r.rounds.filter(q => q.attempts.some(a => ['correct','incorrect','rejected'].includes(a.outcome))).length >= 2)`, "旧挑战恢复后继续完成轮次");
+    await click("← 退出本局");
+    await until("!!document.querySelector('.game-console__primary')", "旧挑战退出保存进度");
+    await click("三关挑战"); await click("排行榜");
+    await until("!document.querySelector('.challenge-leaderboard select') && document.querySelectorAll('.challenge-leaderboard > .challenge-table-scroll tbody tr').length === 1", "只显示当前组成绩且无历史配置入口");
+    await until("document.querySelectorAll('.challenge-leaderboard > .challenge-table-scroll tbody tr').length === 1", "当前暖白榜单只保留当前组完整成绩");
+    const legacy = await evaluate<any>(`window.brainGameDesktop.getChallenge(${JSON.stringify(legacyId)})`);
+    if (JSON.parse(legacy.configuration.stimulus).presentationVersion || legacy.status === "completed") throw new Error("旧挑战指纹被迁移或进度丢失");
     report.success = true;
   } catch (error) { report.success = false; report.error = String(error); await capture("failure"); throw error; }
   finally { report.finishedAt = new Date().toISOString(); await fs.writeFile(path.join(directory, "challenge-smoke.json"), JSON.stringify(report, null, 2)); console.log(`CHALLENGE_SMOKE_RESULT=${JSON.stringify(report)}`); }

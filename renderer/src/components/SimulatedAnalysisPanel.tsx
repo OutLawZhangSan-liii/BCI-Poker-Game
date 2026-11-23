@@ -1,3 +1,4 @@
+import { InlineAnalysisDetails } from "./InlineAnalysisDetails";
 import { setupCanvas, drawGrid, clipToPlot, drawSpectrum, SpectrumFrequencyLegend } from "./SpectrumFigure";
 import { ReusableSpectrum } from "../teaching/reusableSpectrum";
 import { createPortal } from "react-dom";
@@ -201,13 +202,20 @@ function drawTimeFrequency(canvas: HTMLCanvasElement, columns: TimeFrequencyColu
 function TimeFrequencyCanvas({ columns, windowSamples }: { columns: TimeFrequencyColumn[]; windowSamples: number }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const dataRef = useRef({ columns, windowSamples });
-  const redraw = () => { if (canvasRef.current) drawTimeFrequency(canvasRef.current, dataRef.current.columns, dataRef.current.windowSamples); };
+  const frame = useRef<number | null>(null);
+  const redraw = () => {
+    if (frame.current !== null) return;
+    frame.current = requestAnimationFrame(() => {
+      frame.current = null;
+      if (canvasRef.current) drawTimeFrequency(canvasRef.current, dataRef.current.columns, dataRef.current.windowSamples);
+    });
+  };
   useEffect(() => { dataRef.current = { columns, windowSamples }; redraw(); }, [columns, windowSamples]);
   useEffect(() => {
     const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(redraw);
     if (canvasRef.current?.parentElement) observer?.observe(canvasRef.current.parentElement);
     window.addEventListener("resize", redraw);
-    return () => { observer?.disconnect(); window.removeEventListener("resize", redraw); };
+    return () => { observer?.disconnect(); window.removeEventListener("resize", redraw); if (frame.current !== null) cancelAnimationFrame(frame.current); frame.current = null; };
   }, []);
   return <article className="sim-analysis-chart-card sim-analysis-time-frequency-card"><div className="sim-analysis-chart-heading"><h4>模拟时频图</h4></div><canvas ref={canvasRef} className="sim-analysis-chart sim-analysis-time-frequency" aria-label="模拟数据时频图" /><small>颜色采用 PSD 的对数映射，范围 1e−6～4 a.u.²/Hz。</small></article>;
 }
@@ -449,7 +457,7 @@ export function SimulatedAnalysisPanel({ principleDemo = false, demoFrequencies 
   const status = getSimulatedAnalysisStatus(running, observedWindow.length, SIMULATED_WINDOW_SAMPLES, Boolean(recoveryNotice));
   const statusHint = getSimulatedAnalysisHint(status, observedWindow.length, SIMULATED_WINDOW_SAMPLES);
   const runControls = <div className="sim-analysis-controls analysis-run-controls">
-      <button type="button" onClick={() => { startAnalysis(); notifyTraining("分析已开始"); }} disabled={running}>开始模拟分析</button>
+      <button type="button" className="paper-primary" onClick={() => { startAnalysis(); notifyTraining("分析已开始"); }} disabled={running}>开始模拟分析</button>
       <button type="button" className="secondary" onClick={() => { pauseAnalysis(); notifyTraining("分析已暂停"); }} disabled={!running}>暂停</button>
       <button type="button" className="secondary" onClick={() => { pauseAnalysis(); resetBuffers(false); notifyTraining("分析已重置"); }}>重置</button>
 
@@ -512,13 +520,13 @@ export function SimulatedAnalysisPanel({ principleDemo = false, demoFrequencies 
     {(isSidebar && !principleDemo) || analysisView === "charts" ? <AnalysisCanvas singleChart={isSidebar} observed={observedWindow} clean={cleanWindow} observedSpectrum={observedSpectrum} cleanSpectrum={cleanSpectrum} showIdeal={showIdeal} waveformLimit={waveformLimit} spectrumLimit={spectrumLimit} /> : <div className="sim-analysis-time-frequency-wrap"><TimeFrequencyCanvas columns={timeFrequencyColumns} windowSamples={timeFrequencyWindow} /><p className="sim-analysis-time-frequency-meta">时频窗口 {timeFrequencyWindow} 点 · 步长 {TIME_FREQUENCY_STEP_SAMPLES} 点 · 已形成 {timeFrequencyColumns.length} 列 · 每列使用窗口中心时间；未满完整窗口时不生成列。</p></div>}
     {!isSidebar && timeFrequencyNotice && <p className="sim-analysis-hint" role="status">{timeFrequencyNotice}</p>}
     {!isSidebar && analysisView === "time-frequency" && timeFrequencyOverflow && <p className="sim-analysis-hint is-warning" role="status">时频图存在 PSD 超过固定色域上限 4 的列；颜色已饱和，原始数值未修改。</p>}
-    <details className="analysis-runtime-details" open={isSidebar ? sheetSection === "parameters" || undefined : undefined}><summary>运行详情</summary>
+    <InlineAnalysisDetails title="运行详情" defaultOpen={isSidebar && sheetSection === "parameters"}>
     <div className="sim-analysis-footer"><span>窗口样本：{observedWindow.length}/{SIMULATED_WINDOW_SAMPLES}</span><span>样本序号：{windowStart}–{windowEnd ?? "—"}</span><span>首末样本间隔：{observedWindow.length > 1 ? ((observedWindow.length - 1) / SIMULATED_SAMPLE_RATE_HZ).toFixed(3) : "—"} s</span><span>加噪峰值：{peakText}</span></div>
     {recoveryNotice && <p className="sim-analysis-hint is-warning" role="status">{recoveryNotice}</p>}
     {observedSpectrum?.invalidSamples ? <p className="sim-analysis-hint is-warning" role="status">检测到 {observedSpectrum.invalidSamples} 个异常样本，已按 0 处理；该窗口结果请谨慎解释。</p> : <p className="sim-analysis-hint" role="status">{statusHint}</p>}
     {waveformOverflow && <p className="sim-analysis-hint is-warning" role="status">波形超过当前 ±{waveformLimit} 显示范围；原始样本未修改，请调大“波形纵轴”。</p>}
     {spectrumOverflow && <p className="sim-analysis-hint is-warning" role="status">计算 PSD 峰值超过当前 0–{spectrumLimit} 显示范围；数值未修改。若正在查看背景放大，目标峰超出该视图是正常现象。</p>}
-    </details>
+    </InlineAnalysisDetails>
 
   </section>;
 }

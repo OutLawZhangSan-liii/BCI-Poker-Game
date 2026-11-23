@@ -1,0 +1,508 @@
+{
+  "version": "crayon-deck-v1",
+  "width": 1020,
+  "height": 1425,
+  "sourceHashes": {
+    "J": "c9c927d9ce2b0bb02e64f7c2ff07b9a1c23a618ddda3685c3099c3833b6b31d3",
+    "Q": "019e5329ab05830379dd6a53e2e0a0324335748f2ee8173094a93a41a32611ca",
+    "K": "05ab22685854f4e45fd269bca0ffa9540f3c0e507b0cf503cb3ead782a7ba3b6",
+    "back": "5fdb20c0dd77fafc65ab290a592508923b6acd3201c130178e926c76fd7dafc3"
+  },
+  "entries": [
+    {
+      "rank": "A",
+      "suit": "♦",
+      "file": "A-1.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": 1,
+      "sha256": "2dd3f2a5ac695a95bfbbd2cee3ba04b89c05ad7ba7417d739f7b56b1886cb4fe"
+    },
+    {
+      "rank": "2",
+      "suit": "♦",
+      "file": "2-1.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": 2,
+      "sha256": "50e4745b8622d64f4364ec3a4dccd3eb6e71df210436b5a9158a9dd6cd8589d7"
+    },
+    {
+      "rank": "3",
+      "suit": "♦",
+      "file": "3-1.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": 3,
+      "sha256": "031f5e9dd84cc47a4e487de1783fd2317b9bfd47f7581fd2e79051d89fb171b2"
+    },
+    {
+      "rank": "4",
+      "suit": "♦",
+      "file": "4-1.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": 4,
+      "sha256": "fb498c88e045ad7f2bb2f1fbe2e22619e908a9dbb0828fe8734d0b9c888dad88"
+    },
+    {
+      "rank": "5",
+      "suit": "♦",
+      "file": "5-1.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": 5,
+      "sha256": "122216026d1b068ea25f7b5d2a597b3ed5c4518c207fb7434a8b68914712f0b3"
+    },
+    {
+      "rank": "6",
+      "suit": "♦",
+      "file": "6-1.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": 6,
+      "sha256": "d5861b4237e1036cfbb8ca589148372a62e99810f956e4ecc498f2ce567bf8d2"
+    },
+    {
+      "rank": "7",
+      "suit": "♦",
+      "file": "7-1.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": 7,
+      "sha256": "0d565a4df46d386fe4b7995079e1155eb5912974822b697e16224a26c9dcc5c2"
+    },
+    {
+      "rank": "8",
+      "suit": "♦",
+      "file": "8-1.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": 8,
+      "sha256": "e97c9729483df11f513fc395e6dfd50cca5057e30c096d31fdb5c43cdd17d59c"
+    },
+    {
+      "rank": "9",
+      "suit": "♦",
+      "file": "9-1.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": 9,
+      "sha256": "fabb1e5940b2e9414547678df12755842785640414c719567b9e1915db3622c2"
+    },
+    {
+      "rank": "10",
+      "suit": "♦",
+      "file": "10-1.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": 10,
+      "sha256": "9acdcf95853140748fa050bcc6dbac240c75b679b3972500ce49d22457f129b2"
+    },
+    {
+      "rank": "J",
+      "suit": "♦",
+      "file": "J-1.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": null,
+      "sha256": "2f244bcfe88f4b5c4ce234a73ba6959227445591d52485a0c6e1b721a66f2daf"
+    },
+    {
+      "rank": "Q",
+      "suit": "♦",
+      "file": "Q-1.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": null,
+      "sha256": "3e9a460553301aa4cf8215db6e9d70aa794a65a55b3b501c98aafc9d06c1750e"
+    },
+    {
+      "rank": "K",
+      "suit": "♦",
+      "file": "K-1.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": null,
+      "sha256": "ae084d2acbb268b736d8769ccdac80523207654845717b258443218bb5ae60ef"
+    },
+    {
+      "rank": "A",
+      "suit": "♣",
+      "file": "A-2.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": 1,
+      "sha256": "b603cfb78dad9b74af12f084980189c6c529be0bb4ba31a4bec26f82f0c96ef8"
+    },
+    {
+      "rank": "2",
+      "suit": "♣",
+      "file": "2-2.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": 2,
+      "sha256": "c8458b5c6b1ab8a234d3aecc25bc6fb8951cd1e490f3e906364240c58f9ad1fe"
+    },
+    {
+      "rank": "3",
+      "suit": "♣",
+      "file": "3-2.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": 3,
+      "sha256": "4bbed4017f9146ee022c31bd338b9b949da2def053f174df447e3f1506b8a000"
+    },
+    {
+      "rank": "4",
+      "suit": "♣",
+      "file": "4-2.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": 4,
+      "sha256": "78ec129db7adc946f073c46bf9865aef3343aaf87e8b1158e6a77e207d0aed56"
+    },
+    {
+      "rank": "5",
+      "suit": "♣",
+      "file": "5-2.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": 5,
+      "sha256": "888c44de9df21c76058af413912004b87744ad7bca13993ea0468f38ab28696c"
+    },
+    {
+      "rank": "6",
+      "suit": "♣",
+      "file": "6-2.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": 6,
+      "sha256": "0db0c9063b33c0b6a3f6f8705111f272adbfbd4f3804490932e65064621041fb"
+    },
+    {
+      "rank": "7",
+      "suit": "♣",
+      "file": "7-2.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": 7,
+      "sha256": "c1d6fde98dd5cfa9854ec15cd4e24fd035adf52b2d80177167a374de31b8d503"
+    },
+    {
+      "rank": "8",
+      "suit": "♣",
+      "file": "8-2.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": 8,
+      "sha256": "ae64dd1155162f861af3b8ee228c489e9356fd5c0f2a9462671a7fa06d4039d4"
+    },
+    {
+      "rank": "9",
+      "suit": "♣",
+      "file": "9-2.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": 9,
+      "sha256": "1792dbb4fd0798e03cde0a204e4b53db97425a2886f933728bb665f2f0bb63a8"
+    },
+    {
+      "rank": "10",
+      "suit": "♣",
+      "file": "10-2.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": 10,
+      "sha256": "0341c95c88a88e11c1d3c328de7d41ebeca25c817fab28e4077d9992f4d6899f"
+    },
+    {
+      "rank": "J",
+      "suit": "♣",
+      "file": "J-2.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": null,
+      "sha256": "f45444bd5c5e871ef0681f03012635b334951549362b0d7743d49546fd8dd1a1"
+    },
+    {
+      "rank": "Q",
+      "suit": "♣",
+      "file": "Q-2.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": null,
+      "sha256": "9c7a57d7d46ff0f17395f83b652e355415f87d40c785dd469e1ade78d8af3cd7"
+    },
+    {
+      "rank": "K",
+      "suit": "♣",
+      "file": "K-2.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": null,
+      "sha256": "b3bbbf99407ceda55aa00a5f07ab84a8acdfa8f80e0aabf364a1e4c70755327b"
+    },
+    {
+      "rank": "A",
+      "suit": "♥",
+      "file": "A-3.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": 1,
+      "sha256": "2319fc16536215bf612ff97be5d854d2d6b382f6b08dd361f4e8bdc9aec9225e"
+    },
+    {
+      "rank": "2",
+      "suit": "♥",
+      "file": "2-3.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": 2,
+      "sha256": "85ffc976283efd812708b5333539b1f2ad2a1a566cc7a44da15d53ce4653f19a"
+    },
+    {
+      "rank": "3",
+      "suit": "♥",
+      "file": "3-3.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": 3,
+      "sha256": "9ce26ae92741665d0b2a1a4ccfc066e1330c95419fe79d4a73de183fce811ab5"
+    },
+    {
+      "rank": "4",
+      "suit": "♥",
+      "file": "4-3.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": 4,
+      "sha256": "ba1a7e26326ec223049dd267429612e9f469a7650d5b721bcaa816528a67fc3e"
+    },
+    {
+      "rank": "5",
+      "suit": "♥",
+      "file": "5-3.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": 5,
+      "sha256": "40d39185e6cf0c483d451d82a2a2a7db5539a49c32dc7882c94d6c8da7f4c84e"
+    },
+    {
+      "rank": "6",
+      "suit": "♥",
+      "file": "6-3.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": 6,
+      "sha256": "174e32f78cbb90172464fee5774c94ea25b25df6c0194dfab877d0a0ec0c70a8"
+    },
+    {
+      "rank": "7",
+      "suit": "♥",
+      "file": "7-3.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": 7,
+      "sha256": "25809197caaca3fc5345dac54ebc2cb880d4b526d5b75d3dd08865141118cb5d"
+    },
+    {
+      "rank": "8",
+      "suit": "♥",
+      "file": "8-3.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": 8,
+      "sha256": "0d6fc2d1ce18f5d58a20cbde2276ddef774fd986325bb5cf3b183b603d740f83"
+    },
+    {
+      "rank": "9",
+      "suit": "♥",
+      "file": "9-3.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": 9,
+      "sha256": "04b364a7eaa4a02c546d4c402c293f7860dc5fdcd64c5fc21d9e398098d290fd"
+    },
+    {
+      "rank": "10",
+      "suit": "♥",
+      "file": "10-3.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": 10,
+      "sha256": "1c87dea9edd5894915d81af0568bb6a6d9cd62a2721e3627d0074f8fa47645c1"
+    },
+    {
+      "rank": "J",
+      "suit": "♥",
+      "file": "J-3.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": null,
+      "sha256": "af332120c84c3c26b5116a80df457c8e4f8c6a60d99bc908dfd19a25a24a2c05"
+    },
+    {
+      "rank": "Q",
+      "suit": "♥",
+      "file": "Q-3.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": null,
+      "sha256": "a85d826b4abef67a6ebd0d9798b2d564cc21db0a0bc24dab1695eb46f113e9bb"
+    },
+    {
+      "rank": "K",
+      "suit": "♥",
+      "file": "K-3.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": null,
+      "sha256": "363fe4f3195b0bfbc67018901208c89321c514f448154acf0637b6eb7b704b53"
+    },
+    {
+      "rank": "A",
+      "suit": "♠",
+      "file": "A-4.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": 1,
+      "sha256": "5cb395a14d0d289dbe292829981bdebfeea9674304d5f94672c6991ffd4db116"
+    },
+    {
+      "rank": "2",
+      "suit": "♠",
+      "file": "2-4.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": 2,
+      "sha256": "02c153a64f46986d472c1fb5616b321a2420090422a7723acd90257314376ecb"
+    },
+    {
+      "rank": "3",
+      "suit": "♠",
+      "file": "3-4.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": 3,
+      "sha256": "a41ccc8a072f14c4496f725c91651a8a1ab5bd31902036a956166ec82a92257f"
+    },
+    {
+      "rank": "4",
+      "suit": "♠",
+      "file": "4-4.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": 4,
+      "sha256": "2324784963c683715ae23e20f7aa50dc2b7aa33bf949e2fdbd289ee26ae789bb"
+    },
+    {
+      "rank": "5",
+      "suit": "♠",
+      "file": "5-4.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": 5,
+      "sha256": "827247654d3544eb3ecb71ff21ea19a3e8154695a7ea8b59863f1a54c67b7f63"
+    },
+    {
+      "rank": "6",
+      "suit": "♠",
+      "file": "6-4.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": 6,
+      "sha256": "077a9cab068c77c9786aab294e24acb0f9f16b57fcd71b929353a4f0b5c4d484"
+    },
+    {
+      "rank": "7",
+      "suit": "♠",
+      "file": "7-4.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": 7,
+      "sha256": "f94c63571c159385d7f63d978848c7f722d256b4407ee8f465ee705b937b1083"
+    },
+    {
+      "rank": "8",
+      "suit": "♠",
+      "file": "8-4.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": 8,
+      "sha256": "e1fcb9ea85e6a0258d8e2cfcbe35bdfc1deaccdb606c40a79506d280b5923568"
+    },
+    {
+      "rank": "9",
+      "suit": "♠",
+      "file": "9-4.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": 9,
+      "sha256": "e8ed21a36d294564de984cc0c571d06d71c999e90d387fd9b3577bd520c2d5c2"
+    },
+    {
+      "rank": "10",
+      "suit": "♠",
+      "file": "10-4.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": 10,
+      "sha256": "74afa527b94b1e6e1ce9f70d98d31a4b1974ff464391962a3d7f2affbd44f2be"
+    },
+    {
+      "rank": "J",
+      "suit": "♠",
+      "file": "J-4.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": null,
+      "sha256": "69418015708e91b2a042b41c101d893ce8d0f2483b7833d99ca3576cfb93b440"
+    },
+    {
+      "rank": "Q",
+      "suit": "♠",
+      "file": "Q-4.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": null,
+      "sha256": "525654439da8783b0af6ad63165f607f40e12f2efbd740d0192fa4f80fa7832a"
+    },
+    {
+      "rank": "K",
+      "suit": "♠",
+      "file": "K-4.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": null,
+      "sha256": "9c02700bac1c43bc272dd44a294f8319ae4f22b2a00d6caacb8a21936b0ff261"
+    },
+    {
+      "rank": "Joker",
+      "suit": "black",
+      "file": "Joker-1.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": null,
+      "sha256": "a7481cd293d396b390a7cb6a6698326d0352c82228ffe6e3ec2ca8227af98cc1"
+    },
+    {
+      "rank": "Joker",
+      "suit": "red",
+      "file": "Joker-2.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": null,
+      "sha256": "56f0e33f9cbfce6aae304d4835d62459551192d6712c538b5b05361a5867459f"
+    },
+    {
+      "rank": "back",
+      "suit": "",
+      "file": "card-back.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": null,
+      "sha256": "1a92860a4eb9db5f151d45af70dda612fce122b4d530877cc14b4b18652c2aea"
+    }
+  ]
+}

@@ -24,6 +24,6 @@ export function AnalysisSummary({ samples, spectrum }: { samples: Float32Array; 
   const format = (value: number | undefined) => value === undefined ? "—" : value.toPrecision(4);
   return <section className="analysis-summary" aria-label="窗口指标与峰值摘要">
     <div><span>峰峰值</span><strong>{format(metrics?.peakToPeak)} <small>{EEG_SAMPLE_UNIT}</small></strong></div>
-    <div><span>主峰</span><strong>{peaks[0] ? peaks[0].frequency.toFixed(2) + " Hz" : "—"}</strong><small>{peaks[0] ? format(peaks[0].power) + ` ${EEG_PSD_UNIT}` : "等待完整窗口"}</small></div>
+    <div><span>主峰</span><strong>{peaks[0] ? peaks[0].frequency.toFixed(2) + " Hz" : "—"}</strong>{peaks[0] && <small>{format(peaks[0].power)} {EEG_PSD_UNIT}</small>}</div>
   </section>;
 }

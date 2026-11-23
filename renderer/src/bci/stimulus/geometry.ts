@@ -12,7 +12,7 @@ export interface ResponsiveStimulusGeometryInput {
   referenceY?: number;
   deckTopRatio?: number;
   devicePixelRatio?: number;
-  targetSize?: "standard" | "diagnostic-large" | "teaching-fill";
+  targetSize?: "standard" | "diagnostic-large" | "teaching-fill" | "game-comfortable-v1" | "game-card-face-v2" | "game-open-v3" | "game-open-v4";
 }
 
 export interface ResponsiveStimulusGeometryTarget {
@@ -40,6 +40,8 @@ export interface ResponsiveStimulusGeometrySnapshot {
   ringY: number;
   targets: ResponsiveStimulusGeometryTarget[];
   reference: ResponsiveStimulusGeometryTarget | null;
+  sizeProfile?: "game-comfortable-v1" | "game-card-face-v2" | "game-open-v3" | "game-open-v4";
+  sizeScale?: number;
 }
 
 /** Resize threshold shared by StimulusTable's active-run safety guard. */
@@ -63,6 +65,73 @@ export function computeResponsiveStimulusGeometry(input: ResponsiveStimulusGeome
   const width = Math.max(1, Number.isFinite(input.width) ? input.width : 1);
   const height = Math.max(1, Number.isFinite(input.height) ? input.height : 1);
   const dpr = clamp(Number.isFinite(input.devicePixelRatio ?? 1) ? (input.devicePixelRatio ?? 1) : 1, 0.5, 4);
+  if (input.targetSize === "game-open-v3" || input.targetSize === "game-open-v4") {
+    const scale = input.targetSize === "game-open-v4" ? 1.05 : 1;
+    const count = input.targets.length, usable = Math.max(60, height - 52), edge = 12;
+    const shiftY = input.targetSize === "game-open-v4" ? Math.min(22, usable * .025) : 0;
+    const cardHeight = Math.min(usable * (count === 2 ? .46 : .42), width * (count === 6 ? .18 : .22) * 190 / 136, 400) * scale;
+    const cardWidth = cardHeight * 136 / 190, ring = 8;
+    const make = (x: number, y: number, w = cardWidth, h = cardHeight, margin = ring): ResponsiveStimulusGeometryTarget => {
+      const cx = width * x, cy = edge + usable * y + shiftY;
+      return { centerX:cx,centerY:cy,card:{x:cx-w/2,y:cy-h/2,width:w,height:h},
+        ring:{x:cx-w/2-margin,y:cy-h/2-margin,width:w+2*margin,height:h+2*margin},
+        label:{x:cx-w/2-margin,y:cy+h/2+margin+6,width:w+2*margin,height:22} };
+    };
+    const points = count === 2 ? [[.21,.68],[.79,.68]] : count === 4 ? [[.22,.215],[.78,.215],[.22,.785],[.78,.785]]
+      : [[.30,.215],[.565,.215],[.83,.215],[.30,.785],[.565,.785],[.83,.785]];
+    const rw = Math.min(count === 2 ? 220 : count === 4 ? 200 : 180, usable * (count === 2 ? .40 : count === 4 ? .39 : .36) * 136 / 190) * scale;
+    return {version:"responsive-geometry-v1",cssWidth:width,cssHeight:height,devicePixelRatio:dpr,backingWidth:Math.round(width*dpr),backingHeight:Math.round(height*dpr),
+      targetCount:count,cardWidth,cardHeight,widthToHeightRatio:136/190,heightToWidthRatio:190/136,ring,ringX:ring,ringY:ring,
+      targets:input.targets.map((_,i)=>make(points[i][0],points[i][1])),reference:input.showReference === false ? null : make(count===6?.09:.5,count===2?.22:.5,rw,rw*190/136,0),sizeProfile:input.targetSize};
+  }
+  if (input.targetSize === "game-card-face-v2") {
+    const base = computeResponsiveStimulusGeometry({ ...input, targetSize: "game-comfortable-v1" });
+    // Reuse the validated seats/centres. Grow faces into their former surround,
+    // reserving shadow clearance; reference/deck geometry is unchanged.
+    const scale = Math.max(1, Math.min(1.12,
+      (base.cardWidth + 2 * base.ringX - 8) / base.cardWidth,
+      (base.cardHeight + 2 * base.ringY - 8) / base.cardHeight));
+    const cardWidth = base.cardWidth * scale, cardHeight = base.cardHeight * scale;
+    return { ...base, sizeProfile: "game-card-face-v2", sizeScale: (base.sizeScale ?? 1) * scale,
+      cardWidth, cardHeight, ringX: base.ringX - (cardWidth - base.cardWidth) / 2,
+      ringY: base.ringY - (cardHeight - base.cardHeight) / 2,
+      ring: Math.min(base.ringX - (cardWidth - base.cardWidth) / 2, base.ringY - (cardHeight - base.cardHeight) / 2),
+      targets: base.targets.map(t => ({ ...t, card: { x: t.centerX - cardWidth / 2, y: t.centerY - cardHeight / 2, width: cardWidth, height: cardHeight } })) };
+  }
+  if (input.targetSize === "game-comfortable-v1") {
+    const original = computeResponsiveStimulusGeometry({ ...input, targetSize: "standard" });
+    const shortSide = Math.min(width, height);
+    const desired = clamp(1.12 + (shortSide - 400) * .000325, 1.12, 1.25);
+    const grow = (target: ResponsiveStimulusGeometryTarget, scale: number): ResponsiveStimulusGeometryTarget => {
+      const rect = (r: typeof target.card) => ({ x: target.centerX + (r.x - target.centerX) * scale,
+        y: target.centerY + (r.y - target.centerY) * scale, width: r.width * scale, height: r.height * scale });
+      const card = rect(target.card), ring = rect(target.ring);
+      return { ...target, card, ring, label: { x: ring.x, y: ring.y + ring.height + 6, width: ring.width, height: target.label.height } };
+    };
+    const overlap = (a: ResponsiveStimulusGeometryTarget["card"], b: ResponsiveStimulusGeometryTarget["card"]) =>
+      a.x < b.x + b.width + 8 && b.x < a.x + a.width + 8 && a.y < b.y + b.height + 8 && b.y < a.y + a.height + 8;
+    // Keep the established centres, ring/face ratio and deck footprint. Enlarge
+    // only as far as the available space permits, including hidden label space.
+    const deckWidth = clamp(shortSide * (input.compactCards && input.targets.length === 6 ? .117 : .11), 72, 119);
+    const deckEdge = clamp(shortSide * .04, 18, 44);
+    const deck = { x: width - deckEdge - deckWidth - 7, y: Math.max(deckEdge, height * (input.deckTopRatio ?? GAME_DECK_TOP_RATIO)) - 7,
+      width: deckWidth + 14, height: deckWidth * (190 / 136) + 14 };
+    const fits = (scale: number) => {
+      const targets = original.targets.map(target => grow(target, scale));
+      const reference = original.reference && grow(original.reference, scale);
+      const boxes = targets.map(target => ({ ...target.ring, height: target.ring.height + 6 + target.label.height }));
+      if (reference) boxes.push({ x: reference.card.x, y: reference.card.y - 28, width: reference.card.width, height: reference.card.height + 28 });
+      return boxes.every((box, index) => box.x >= 10 && box.y >= 10 && box.x + box.width <= width - 10 && box.y + box.height <= height - 10
+        && !overlap(box, deck) && boxes.slice(index + 1).every(other => !overlap(box, other)));
+    };
+    let low = 1, high = desired;
+    if (fits(low)) for (let i = 0; i < 24; i++) { const mid = (low + high) / 2; if (fits(mid)) low = mid; else high = mid; }
+    const scale = low;
+    return { ...original, sizeProfile: "game-comfortable-v1", sizeScale: scale,
+      cardWidth: original.cardWidth * scale, cardHeight: original.cardHeight * scale,
+      ring: original.ring * scale, ringX: original.ringX * scale, ringY: original.ringY * scale,
+      targets: original.targets.map(target => grow(target, scale)), reference: original.reference && grow(original.reference, scale) };
+  }
   // Scale principle targets and their original surrounds together. Cells
   // only constrain placement: they do not stretch the grey flicker surface.
   if (input.targetSize === "teaching-fill" && input.targets.length >= 1 && input.targets.length <= 4 && input.showReference === false) {

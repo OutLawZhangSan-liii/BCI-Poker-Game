@@ -1,0 +1,309 @@
+/* Group navigation and related content on the paper without framing every control. */
+.shell--lab {
+  --workspace-paper: var(--color-paper);
+  --workspace-heading: color-mix(in srgb, var(--color-ink) 12%, var(--workspace-paper));
+  --workspace-edge: color-mix(in srgb, var(--color-ink) 18%, var(--workspace-paper));
+  --workspace-shadow: 0 4px 14px rgba(23, 53, 107, .065);
+}
+html[data-presentation] .shell :is(
+  .lab-device-toolbar, .lab-device-main > .card,
+  .lab-log-summary, .lab-experiment-workspace, .stimulus-timing-diagnostics
+) {
+  border: 1px solid var(--workspace-edge);
+  border-radius: 15px;
+  background-color: var(--workspace-paper);
+  box-shadow: var(--workspace-shadow);
+}
+
+/* Two ink corners follow the active workspace label at every teaching size. */
+html[data-presentation] .shell--teaching .teaching-workspace-nav .teaching-segmented {
+  padding: 0;
+  border: 0;
+}
+html[data-presentation] .shell--teaching .teaching-workspace-nav .teaching-segmented button {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #5c6c88;
+  font-weight: 500;
+}
+html[data-presentation] .shell--teaching .teaching-workspace-nav .teaching-segmented button[aria-current="page"] {
+  color: var(--color-ink);
+  font-weight: 700;
+}
+.teaching-workspace-nav button > span { position: relative; display: inline-block; }
+.teaching-workspace-nav button > span::before,
+.teaching-workspace-nav button > span::after {
+  content: "";
+  position: absolute;
+  width: .4em;
+  height: .36em;
+  border: solid #455f87;
+  opacity: 0;
+  transition: opacity 160ms ease-out;
+  pointer-events: none;
+}
+.teaching-workspace-nav button > span::before { top: -.09em; left: -.32em; border-width: 2px 0 0 2px; }
+.teaching-workspace-nav button > span::after { bottom: -.09em; right: -.32em; border-width: 0 2px 2px 0; }
+.teaching-workspace-nav button[aria-current="page"] > span::before,
+.teaching-workspace-nav button[aria-current="page"] > span::after { opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  .teaching-workspace-nav button > span::before, .teaching-workspace-nav button > span::after { transition: none; }
+}
+
+.shell :is(
+  .lab-device-main > .card > h2, .experiment-toolbar, .stimulus-timing-diagnostics > h2
+) {
+  border-radius: 9px;
+  background-color: var(--workspace-heading);
+  color: var(--color-ink);
+}
+html[data-presentation] .shell--teaching-course .teaching-wave-controls > button {
+  color: #63758D;
+  font-weight: 600;
+  text-decoration: none;
+}
+html[data-presentation] .shell--teaching-course .teaching-wave-controls > button[aria-pressed="true"] {
+  color: var(--color-ink);
+  font-weight: 700;
+}
+.teaching-wave-controls > button > .teaching-wave-label {
+  display: inline-block;
+  margin: 0;
+  color: inherit;
+  font: inherit;
+}
+.teaching-wave-controls > button[aria-pressed="true"] > .teaching-wave-label {
+  transform: scale(1.055);
+  transform-origin: left center;
+}
+html[data-presentation] .shell--teaching-course :is(.teaching-course-nav__desktop, .lesson-pane-nav, .teaching-wave-controls) > button:focus-visible {
+  outline: 1px dashed var(--lesson-accent);
+  outline-offset: 1px;
+  text-decoration: none;
+}
+@media (max-height: 700px) {
+  html[data-presentation] .shell--teaching-course .teaching-lesson {
+    gap: 6px;
+  }
+  html[data-presentation] .shell--teaching-course .teaching-panel > .teaching-workspace-nav { margin-bottom: 0; }
+  html[data-presentation] .shell--teaching-course .teaching-quiz-options button {
+    min-height: 30px;
+    padding-block: 3px;
+  }
+  html[data-presentation] .shell--teaching-course .teaching-quiz > .teaching-quiz-feedback { padding-block: 0; }
+}
+@media (max-width: 760px) {
+  html[data-presentation] .shell--teaching-course .teaching-workspace-nav .teaching-segmented { width: min(385px, 100%); }
+}
+
+.lab-device-toolbar__status h2 { margin: 0; font-size: 20px; line-height: 1.25; }
+html[data-presentation] .shell--lab .lab-device-workspace { padding: 0 2px 5px; }
+html[data-presentation] .shell--lab .lab-device-toolbar {
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  margin: 0 0 12px;
+}
+.shell--lab .lab-device-toolbar__actions { width: auto; }
+html[data-presentation] .shell--lab .lab-device-main { gap: 12px; }
+html[data-presentation] .shell--lab .lab-device-main > .card { padding: 9px 10px; }
+.shell--lab .lab-device-main > .card > h2 { margin: 0 0 4px; padding: 7px 10px; font-size: 17px; }
+html[data-presentation] .shell--lab .lab-device-main dl { margin: 0; }
+html[data-presentation] .shell--lab .lab-device-main dl div { padding: 8px 10px; }
+html[data-presentation] .shell--lab .lab-device-main dl div + div { border-top: 1px solid var(--paper-divider, var(--color-border)); }
+html[data-presentation] .shell--lab .lab-log-summary { margin: 12px 0 0; padding: 6px 14px; }
+html[data-presentation] .shell--lab-experiment .lab-experiment-workspace { margin-top: 0; }
+html[data-presentation] .shell--lab-experiment .lab-experiment-workspace .experiment-toolbar { background-color: var(--workspace-heading); }
+.shell--lab .stimulus-timing-diagnostics > h2 { padding: 7px 10px; }
+
+/* Size the teaching pages from the usable window after Windows display scaling. */
+.shell--teaching {
+  --reading-size: clamp(16px, min(1.2vw, 2.15vh), 34px);
+  --control-type: clamp(15px, min(1.13vw, 2.03vh), 32px);
+  --note-type: clamp(13px, min(.98vw, 1.8vh), 27px);
+  --choice-paper: #eaf0f8;
+  --choice-hover: #dae5f4;
+}
+.shell--teaching-course .teaching-course-workspace { max-width: none; margin-inline: 0; }
+html[data-presentation] .shell--teaching .teaching-workspace-nav .teaching-segmented {
+  width: min(100%, max(385px, calc(var(--control-type) * 24)));
+}
+html[data-presentation] .shell--teaching .teaching-workspace-nav .teaching-segmented button { font-size: var(--control-type); }
+html[data-presentation] .shell--teaching-course .teaching-course-nav__desktop button,
+html[data-presentation] .themed-dropdown__menu.themed-dropdown--course .themed-dropdown__option,
+html[data-presentation] .teaching-course-picker .themed-dropdown__trigger {
+  position: relative;
+  padding-inline-start: 1.05em;
+}
+html[data-presentation] .shell--teaching-course .teaching-course-nav__desktop button,
+html[data-presentation] .themed-dropdown__menu.themed-dropdown--course .themed-dropdown__option {
+  align-items: center;
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+html[data-presentation] .shell--teaching-course .teaching-course-nav__desktop button[aria-current="step"],
+html[data-presentation] .themed-dropdown__menu.themed-dropdown--course .themed-dropdown__option[aria-selected="true"] {
+  color: var(--color-ink);
+  font-weight: 700;
+  background: transparent;
+}
+.teaching-course-nav__desktop button[aria-current="step"]::before,
+.themed-dropdown__menu.themed-dropdown--course .themed-dropdown__option[aria-selected="true"]::before,
+.teaching-course-picker .themed-dropdown__trigger::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: .25em;
+  top: 50%;
+  width: .33em;
+  height: .85em;
+  background: var(--color-ink);
+  transform: translateY(-53%) rotate(-3deg);
+  clip-path: polygon(0 0, 100% 2%, 100% 100%, 48% 76%, 0 100%);
+  pointer-events: none;
+}
+
+html[data-presentation] .shell--teaching-course .teaching-lesson :is(.lesson-example-choices, .teaching-flow__steps, .teaching-feedback-tabs, .teaching-frequency-pick:not(.teaching-wave-controls)) button {
+  padding: .26em .75em;
+  border-radius: 5px;
+  background: var(--choice-paper);
+  text-decoration: none;
+}
+html[data-presentation] .shell--teaching-course .teaching-lesson :is(.lesson-example-choices, .teaching-flow__steps, .teaching-feedback-tabs, .teaching-frequency-pick:not(.teaching-wave-controls)) button:enabled:hover:not([aria-pressed="true"]) { background: var(--choice-hover); color: var(--color-ink); text-decoration: none; }
+html[data-presentation] .shell--teaching-course .teaching-lesson :is(.lesson-example-choices, .teaching-flow__steps, .teaching-feedback-tabs, .teaching-frequency-pick:not(.teaching-wave-controls)) button[aria-pressed="true"] { background: var(--color-ink); color: #fff; text-decoration: none; }
+.shell--teaching-course .teaching-flow__steps button[aria-pressed="true"] .teaching-flow__number { color: inherit; }
+html[data-presentation] .shell--teaching-course .teaching-lesson .lesson-demo-link {
+  display: inline-flex;
+  align-items: center;
+  padding: .2em .7em;
+  border: 1px solid #a0b2cb;
+  border-radius: 5px;
+  color: var(--color-ink);
+}
+html[data-presentation] .shell--teaching-course .teaching-lesson .lesson-demo-link:enabled:hover { background: var(--choice-paper); }
+html[data-presentation] .shell--teaching-course .teaching-lesson .lesson-reference-trigger {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  gap: .38em;
+  padding: .2em .15em;
+  border: 0;
+  border-bottom: 2px solid #718aaa;
+  border-radius: 0 0 35% 2%;
+  background: transparent;
+  color: var(--color-ink);
+  white-space: nowrap;
+  text-decoration: none;
+}
+html[data-presentation] .shell--teaching-course .teaching-lesson .lesson-reference-trigger:hover {
+  color: var(--color-primary-hover);
+  border-bottom-color: currentColor;
+}
+html[data-presentation] .shell--teaching-course .teaching-lesson button:focus-visible { outline: 2px solid #527298; outline-offset: 2px; }
+html[data-presentation] .shell--teaching-course .teaching-quiz-options button { background: transparent; }
+html[data-presentation] .shell--teaching-course .teaching-quiz .quiz-correct { color: var(--color-success); }
+html[data-presentation] .shell--teaching-course .teaching-quiz .quiz-wrong { color: var(--color-error); }
+
+.lesson-example-choices { display: flex; flex-wrap: wrap; gap: .45em; }
+.lesson-signal-example figure { margin: .4em 0 0; }
+.lesson-signal-example figcaption { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .35em 1em; align-items: baseline; }
+.lesson-signal-example figcaption strong { color: var(--color-ink); }
+.lesson-signal-example figcaption span, .lesson-example-plot { color: var(--color-text-secondary); font-size: var(--note-type); font-variant-numeric: tabular-nums; }
+.lesson-example-plot { display: grid; grid-template-columns: max-content minmax(0,1fr); gap: 2px .6em; margin-top: .2em; }
+.lesson-example-graph { display: block; width: 100%; height: clamp(44px, 6.8vh, 160px); background: #edf2f9; color: #34598c; }
+.lesson-example-graph rect { shape-rendering: crispEdges; }
+.lesson-example-y, .lesson-example-x { display: flex; justify-content: space-between; line-height: 1.15; }
+.lesson-example-y { flex-direction: column; align-items: end; }
+.lesson-example-x { grid-column: 2; }
+.shell--teaching-course .teaching-number-control input[type="range"] { width: clamp(130px, 14vw, 350px); padding: 0; border: 0; accent-color: var(--color-ink); cursor: pointer; }
+.shell--teaching-course .teaching-number-control output { min-width: 4.4em; font-variant-numeric: tabular-nums; }
+.lesson-demo-link { margin-top: .5em; }
+
+@media (min-width: 1200px) and (min-height: 800px) {
+  .shell--teaching-course .teaching-course-workspace {
+    grid-template-columns: clamp(195px, 15.5vw, 480px) minmax(0,1fr);
+    column-gap: clamp(22px, 2vw, 78px);
+    padding-inline: clamp(8px, .85vw, 36px);
+  }
+  .shell--teaching-course .teaching-lesson__intro h3 { font-size: clamp(36px, min(3.1vw, 5.3vh), 84px); }
+  .shell--teaching-course .teaching-course-nav__heading strong,
+  .shell--teaching-course .teaching-lesson h4 { font-size: calc(var(--reading-size) * 1.13); }
+  .shell--teaching-course .teaching-lesson__observation { max-width: min(100%, 70em); font-size: var(--reading-size); }
+  .shell--teaching-course .teaching-lesson__observation > article > p,
+  .shell--teaching-course .teaching-quiz > p:not(.teaching-quiz-feedback),
+  .shell--teaching-course .teaching-lesson .teaching-callout { font-size: var(--reading-size); }
+  .shell--teaching-course .teaching-lesson :is(button, .teaching-number-control, .harmonic-preview > div, .teaching-feedback-case),
+  .shell--teaching-course .teaching-course-nav__desktop > button { font-size: var(--control-type); }
+  .shell--teaching-course .teaching-course-nav__desktop button span,
+  .shell--teaching-course :is(.teaching-course-nav__progress, .teaching-flow__number, .teaching-lesson .teaching-quiz-feedback, .lesson-reference-trigger, .teaching-wave-controls > span, .teaching-mini-wave > span) { font-size: var(--note-type); }
+  .shell--teaching-course .teaching-mini-wave { height: clamp(78px, 8.5vh, 170px); }
+  .shell--teaching-course .lesson-reference-dialog { width: min(38em, 82vw); font-size: var(--reading-size); }
+  .shell--teaching-course .lesson-reference-dialog__text p { font-size: inherit; }
+  .shell--teaching-course .lesson-reference-dialog h3 { font-size: 1.45em; }
+  .shell--teaching-course .harmonic-preview > div { grid-template-columns: 6em 5em minmax(0,1fr); }
+  .shell--teaching :is(.teaching-analysis-toolbar__actions button, .training-control-bar button, .teaching-settings label, .teaching-settings select, .teaching-settings input, .real-eeg-controls select, .real-eeg-controls button, .teaching-segmented--modes button, .demo-channel-select select, .teaching-settings-details > summary) { font-size: var(--control-type); }
+  .shell--teaching :is(.sim-analysis-chart-heading h4, .demo-cca h4) { font-size: var(--reading-size); }
+  .shell--teaching :is(.analysis-inline-details, .analysis-inline-details > button, .analysis-inline-details__body :is(span,small), .sim-analysis-hint, .spectrum-frequency-legend, .chart-explanation, .real-eeg-controls label, .real-eeg-controls label span) { font-size: var(--note-type); }
+}
+@media (min-width: 1200px) and (min-height: 880px) {
+  .shell--teaching-course .teaching-lesson {
+    grid-template-rows: minmax(clamp(64px, 7.5vh, 160px),auto) minmax(0,1fr) clamp(40px, 4.2vh, 88px);
+  }
+}
+@media (max-height: 700px) {
+  .lesson-example-graph { height: 40px; }
+  .shell--teaching-course .teaching-course-nav__desktop { gap: 2px; }
+  .shell--teaching-course .teaching-course-nav__desktop button { padding-block: 3px; }
+  .shell--teaching-course .teaching-course-nav__heading { padding-bottom: 4px; }
+}
+
+@media (min-width: 1200px) and (min-height: 800px) {
+  .shell--teaching :is(.principle-psd-heading h4, .principle-spectrogram h4) { font-size: var(--reading-size); }
+  .shell--teaching :is(.principle-psd-channel, .principle-psd-channel select, .demo-cca-row, .demo-classification-result) { font-size: var(--note-type); }
+  .shell--teaching .principle-demo-analysis .sim-analysis-chart { height: clamp(160px, 20vh, 400px); }
+}
+
+.lesson-signal-sliders {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .35em 1.5em;
+  margin: .45em 0;
+}
+.lesson-signal-sliders label, .lesson-time-controls label {
+  display: inline-flex;
+  align-items: center;
+  gap: .5em;
+  color: var(--color-text-secondary);
+  font-size: var(--note-type);
+}
+.lesson-signal-sliders input, .lesson-time-controls input {
+  min-width: 0;
+  width: clamp(82px, 11vw, 290px);
+  margin: 0;
+  accent-color: var(--color-ink);
+  cursor: pointer;
+}
+.lesson-signal-sliders output, .lesson-time-controls output {
+  min-width: 2em;
+  color: var(--color-ink);
+  font-variant-numeric: tabular-nums;
+}
+.lesson-window-readings { display: flex; flex-wrap: wrap; gap: .3em 1em; margin: .45em 0; }
+.lesson-window-readings > div { display: flex; align-items: baseline; gap: .45em; }
+.lesson-window-readings > div + div { border-inline-start: 1px solid var(--color-border); padding-inline-start: 1em; }
+.lesson-window-readings dt { color: var(--color-text-secondary); font-size: var(--note-type); }
+.lesson-window-readings dd { margin: 0; color: var(--color-text-muted); font-variant-numeric: tabular-nums; font-weight: 700; }
+.lesson-window-readings dd[data-hz="12"] { color: #395c8c; }
+.lesson-window-readings dd[data-hz="15"] { color: #89562e; }
+.lesson-time-controls { display: flex; align-items: center; gap: .7em; margin-top: .25em; }
+.lesson-time-controls label { flex: 1; }
+.lesson-time-controls input { flex: 1; }
+.lesson-time-controls output { min-width: 4.2em; text-align: end; }
+html[data-presentation] .shell--teaching-course .lesson-time-controls button {
+  background: var(--choice-paper); border-radius: 4px; min-height: 28px; padding: .2em .65em; font-size: var(--note-type);
+}
+@media (max-height: 700px) {
+  .lesson-window-readings, .lesson-signal-sliders { margin-block: .22em; }
+}

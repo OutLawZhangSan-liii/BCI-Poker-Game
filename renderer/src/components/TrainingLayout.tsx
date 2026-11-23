@@ -6,8 +6,8 @@ const SheetContext = createContext<{ section: SheetSection; select: (section: Sh
 export const useAnalysisSection = () => useContext(SheetContext)?.section;
 export const notifyTraining = (message: string) => window.dispatchEvent(new CustomEvent("training-notification", { detail: message }));
 
-export function TrainingControlBar({ children, trial, realEeg, running, preparing, result, error, mode = "operation", countdown = 0 }: {
-  mode?: "principle" | "operation"; countdown?: number; children: ReactNode; trial: number; realEeg: boolean; running: boolean; preparing: boolean; result: string; error?: string | null;
+export function TrainingControlBar({ children, trial, running, preparing, result, error, mode = "operation", countdown = 0 }: {
+  mode?: "principle" | "operation"; countdown?: number; children: ReactNode; trial: number; running: boolean; preparing: boolean; result: string; error?: string | null;
 }) {
   const [notice, setNotice] = useState("");
   const previous = useRef({ running, result, error });
@@ -28,7 +28,6 @@ export function TrainingControlBar({ children, trial, realEeg, running, preparin
   return <div className="teaching-actions training-control-bar" aria-label="训练控制栏">
     <div className="training-control-actions">{children}</div>
     <div className="training-status-chips">
-      <StatusBadge value={realEeg ? "实时 EEG" : "等待 EEG"} tone={realEeg ? "success" : "neutral"} hint={realEeg ? "活动采集会话中的 EEG 候选仅用于教学反馈，不写入正式校准。" : "请先连接 EEG 设备并开始采集；不会生成替代分析结果。"} />
       <StatusBadge value={state} tone={state === "异常" ? "danger" : running || state === "已完成" ? "success" : "neutral"} />
     </div>
     {notice && mode === "principle" && <div className="training-toast" role="status" aria-live="polite">{notice}</div>}

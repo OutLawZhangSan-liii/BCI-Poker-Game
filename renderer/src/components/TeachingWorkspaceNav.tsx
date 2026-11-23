@@ -16,8 +16,7 @@ const items: Array<{ id: TeachingWorkspace; label: string }> = [
 
 export function TeachingWorkspaceNav({ current, disabled = false, onSelect }: Props) {
   return <nav className="teaching-workspace-nav" aria-label="教学工作区">
-    <div className="teaching-segmented" style={{ "--segment-count": 3 } as CSSProperties}>
-    <span className="teaching-segmented__indicator" aria-hidden="true" style={{ transform: `translateX(${items.findIndex(item => item.id === current) * 100}%)` }} />
+    <div className="teaching-segmented" style={{ "--segment-count": items.length } as CSSProperties}>
     {items.map((item) => <button
       key={item.id}
       type="button"

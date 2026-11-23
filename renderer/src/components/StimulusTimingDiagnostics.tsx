@@ -161,10 +161,10 @@ export function StimulusTimingDiagnostics({ disabled, comparisonEnabled = false,
     <div className="timing-diagnostic-controls"><label>测试模式 <select aria-label="时序测试模式" value={mode} disabled={running || preparing || comparing} onChange={event => { setMode(event.target.value as typeof mode); setCondition(null); setNotice(""); }}><option value="left">12 Hz</option><option value="right">15 Hz</option><option value="both">双刺激 12 / 15 Hz</option></select></label>
       <label>刺激形式 <select aria-label="诊断刺激形式" value={appearance} disabled={running || preparing || comparing} onChange={event => { setAppearance(event.target.value as StimulusAppearance); setCondition(null); }}><option value="card-face">整牌闪烁（无外围）</option><option value="solid">纯色块（同牌面尺寸）</option><option value="card">原外围闪烁</option></select></label>
       <label>注视点 <select aria-label="诊断注视点模式" value={fixationMode} disabled={running || preparing || comparing} onChange={event => { setFixationMode(event.target.value as FixationMode); setCondition(null); }}><option value="fixed">固定</option><option value="synchronous">同步闪烁</option></select></label>
-      <button disabled={disabled || running || preparing || comparing} onClick={() => void start(true)}>开始时序测试</button>
+      <button className="paper-primary" disabled={disabled || running || preparing || comparing} onClick={() => void start(true)}>开始时序测试</button>
       <button disabled={disabled || !comparisonEnabled || running || preparing || comparing} onClick={startComparison}>开始注视对照</button>
       {betweenSegments && <button disabled={remainingSeconds > 0 || !comparisonEnabled} onClick={resumeComparison}>继续第二段</button>}
-      <button className="secondary" disabled={!running && !preparing && !comparing} onClick={() => stop()}>停止测试</button>
+      <button className="secondary paper-stop" disabled={!running && !preparing && !comparing} onClick={() => stop()}>停止测试</button>
       <span role="status">{preparing ? "检测刷新率" : running ? condition?.condition === "static" ? "静态记录中" : "闪烁中" : comparing ? "对照进行中" : "未运行"}</span>
     </div>
     <p className="timing-diagnostic-notice" role="status">{notice || <>{waiting && <strong>{waiting.label} · {remainingSeconds} 秒　</strong>}{comparisonStatus || "短版对照：三种形式 × 固定 / 同步闪烁注视点，12 / 15 Hz 各 2 次；每种组合仅一次静态参考，共 30 次，约 11 分钟。先静息 20 秒，每次 10 秒，间隔休息 6 秒；第 18 次后休息 60 秒，手动继续。用于初步筛选。"}</>}</p>

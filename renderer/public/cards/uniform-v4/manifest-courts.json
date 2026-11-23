@@ -1,0 +1,149 @@
+{
+  "version": "crayon-deck-v4",
+  "innerFrame": false,
+  "width": 1020,
+  "height": 1425,
+  "sourceHashes": {
+    "J": "c9c927d9ce2b0bb02e64f7c2ff07b9a1c23a618ddda3685c3099c3833b6b31d3",
+    "Q": "019e5329ab05830379dd6a53e2e0a0324335748f2ee8173094a93a41a32611ca",
+    "K": "05ab22685854f4e45fd269bca0ffa9540f3c0e507b0cf503cb3ead782a7ba3b6",
+    "back": "5fdb20c0dd77fafc65ab290a592508923b6acd3201c130178e926c76fd7dafc3"
+  },
+  "entries": [
+    {
+      "rank": "J",
+      "suit": "♦",
+      "file": "J-1.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": null,
+      "sha256": "8933af1c6be2a9702c61b1bce44d9c926fc6b9ed72b3b9c8d73f395895a5b3f6"
+    },
+    {
+      "rank": "Q",
+      "suit": "♦",
+      "file": "Q-1.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": null,
+      "sha256": "45e7353bae35e69d9de9602819abfb55609b312f7677ef2f7992002881195599"
+    },
+    {
+      "rank": "K",
+      "suit": "♦",
+      "file": "K-1.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": null,
+      "sha256": "2810368c700190820b7ed9a3e59ed35e9370d2cfb71386f393eda536481542e4"
+    },
+    {
+      "rank": "J",
+      "suit": "♣",
+      "file": "J-2.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": null,
+      "sha256": "06f8b2c7ee1e5c1be3a747227940deeb6c18f359a226ed1253617f3c92a6ddf1"
+    },
+    {
+      "rank": "Q",
+      "suit": "♣",
+      "file": "Q-2.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": null,
+      "sha256": "92ec7baac5c618dac59a0aabedc0884469fde95b630d4ab890b8caf45827afe1"
+    },
+    {
+      "rank": "K",
+      "suit": "♣",
+      "file": "K-2.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": null,
+      "sha256": "9de15bd154c67996774cef6ad7aa698d2fb4c3d1a32ccdeb65ee71098f08792e"
+    },
+    {
+      "rank": "J",
+      "suit": "♥",
+      "file": "J-3.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": null,
+      "sha256": "0f78f0d1ec97556372e144e7766192b7687a9e36740afd63053b494703f458cb"
+    },
+    {
+      "rank": "Q",
+      "suit": "♥",
+      "file": "Q-3.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": null,
+      "sha256": "d83032139ca140310d4e146cf4b20363f103eb860371bac190cb798030059784"
+    },
+    {
+      "rank": "K",
+      "suit": "♥",
+      "file": "K-3.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": null,
+      "sha256": "32a148b98e600899034cff692fc6129440265c2be477c4f419727df9208090d2"
+    },
+    {
+      "rank": "J",
+      "suit": "♠",
+      "file": "J-4.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": null,
+      "sha256": "fb5afe993a3aac462e2c28da6c3b0c77cc8884eabd6dbf1f00242dd63cbe5b02"
+    },
+    {
+      "rank": "Q",
+      "suit": "♠",
+      "file": "Q-4.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": null,
+      "sha256": "a1d14497dd8a94bcbd7524bdc9f9ac098d1be5935805c49cc0075a9cf80afbf0"
+    },
+    {
+      "rank": "K",
+      "suit": "♠",
+      "file": "K-4.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": null,
+      "sha256": "1827e3171320c3c9a85c88ff9490cfe472228a3b39ecc0af76092f6bb13ce2fc"
+    },
+    {
+      "rank": "Joker",
+      "suit": "black",
+      "file": "Joker-1.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": null,
+      "sha256": "479032f6ad08d3220816d7c671a73b4651226ac7cfaf7f251e4123c611e228c1"
+    },
+    {
+      "rank": "Joker",
+      "suit": "red",
+      "file": "Joker-2.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": null,
+      "sha256": "b35d96a8848ed16bb1c037af9ba94dc1908bc6e03355298bb59b24dd65468b80"
+    },
+    {
+      "rank": "back",
+      "suit": "",
+      "file": "card-back.png",
+      "width": 1020,
+      "height": 1425,
+      "pipCount": null,
+      "sha256": "1a92860a4eb9db5f151d45af70dda612fce122b4d530877cc14b4b18652c2aea"
+    }
+  ]
+}

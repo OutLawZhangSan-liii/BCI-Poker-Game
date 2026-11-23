@@ -35,12 +35,13 @@ export function computeKnownComponentSnr(clean: ArrayLike<number>, noise: ArrayL
   return Number.isFinite(snrDb) ? { signalPower, noisePower, snrDb, state: "finite" } : { signalPower, noisePower, snrDb: null, state: "invalid" };
 }
 
+export const TEMPORAL_SWITCH_SECONDS = 5;
 export type TemporalSignalMode = "static" | "transition12to15";
 
 /** A deterministic, teaching-only frequency transition at five seconds. */
 export function generateTemporalCleanSample(sampleIndex: number, amplitudeScale = 1, mode: TemporalSignalMode = "static") {
   if (mode === "static") return generateSimulatedSample(sampleIndex, getSimulatedPreset("single12"), amplitudeScale);
-  const switchSample = Math.round(SIMULATED_SAMPLE_RATE_HZ * 5);
+  const switchSample = Math.round(SIMULATED_SAMPLE_RATE_HZ * TEMPORAL_SWITCH_SECONDS);
   const frequency = sampleIndex < switchSample ? 12 : 15;
   const phaseAtSwitch = 2 * Math.PI * 12 * (switchSample / SIMULATED_SAMPLE_RATE_HZ);
   const timeAfterSwitch = Math.max(0, sampleIndex - switchSample) / SIMULATED_SAMPLE_RATE_HZ;

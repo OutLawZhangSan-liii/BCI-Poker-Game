@@ -17,6 +17,6 @@ export function AppHeader({ title, navigation, status }: AppHeaderProps) {
       </div>
     </div>
     {navigation}
-    <div className="app-header__status" aria-label="系统状态摘要">{status}</div>
+    <div className="app-header__status" aria-label="设备操作">{status}</div>
   </header>;
 }

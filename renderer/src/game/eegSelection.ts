@@ -5,6 +5,7 @@ export const GAME_STIMULUS_MS = 6000;
 export const GAME_ANALYSIS_GRACE_MS = 500;
 
 export interface GameEegTrial {
+  classifierName?: string;
   sessionId: string;
   trialId: string;
   frequencies: number[];
@@ -14,7 +15,7 @@ export interface GameEegTrial {
 
 /** Presentation/selection boundary only; classification stays in the shared Worker. */
 export function gameDecisionChoice(decision: BciDecision, trial: GameEegTrial, nowMs: number): number | null {
-  if (decision.sessionId !== trial.sessionId || decision.trialId !== trial.trialId || decision.classifierName !== "fbcca-cca"
+  if (decision.sessionId !== trial.sessionId || decision.trialId !== trial.trialId || decision.classifierName !== (trial.classifierName ?? "fbcca-cca")
     || decision.rejected || decision.candidateIndex === null || !Number.isInteger(decision.candidateIndex)
     || decision.candidateIndex < 0 || decision.candidateIndex >= trial.frequencies.length
     || nowMs < trial.onsetMs || nowMs > trial.onsetMs + GAME_STIMULUS_MS + GAME_ANALYSIS_GRACE_MS
